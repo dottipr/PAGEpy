@@ -1,11 +1,20 @@
 # PACE - Predictive Analysis of Cell Expression
 
-![GitHub repo size](https://img.shields.io/github/repo-size/your-username/repository-name)
-![GitHub contributors](https://img.shields.io/github/contributors/your-username/repository-name)
-![GitHub license](https://img.shields.io/github/license/your-username/repository-name)
+## Overview
+PACE (Predictive Analysis of Cell Expression) is compatible with both single-cell and bulk RNA sequencing datasets. It requires four input files placed in a single-cell folder:
 
-## Description
-A brief introduction to your project, its purpose, and what it does.
+1. A counts matrix, where genes are rows and cells or samples are columns.
+2. A text file containing the list of all gene names.
+3. A text file containing the list of all sample/barcode names.
+4. A CSV file with the target variable of interest.
+
+This repository provides code to format these datasets, split them into training and test groups, and select highly variable genes (HVGs) to be used as features for a neural network. The network is trained using a custom protocol aimed at minimizing overfitting and training set memorization.
+
+Several customization options are available for different aspects of the process. Additionally, the repository includes a Particle Swarm Optimization (PSO) pipeline to improve the feature set. The PSO pipeline generates many randomized subsets of the initial set of HVGs and iteratively optimizes the population using PSO. Population members are evaluated with simplified neural network architectures over a small number of epochs. A variety of tuning parameters are provided for customization.
+
+The end result of the PSO pipeline is a set of features, based solely on the training dataset, that could potentially improve the model’s generalizability.
+
+The codebase also includes various plotting scripts for evaluating the model's performance.
 
 ## Table of Contents
 - [Installation](#Installation)
@@ -19,15 +28,15 @@ A brief introduction to your project, its purpose, and what it does.
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/repository-name.git
+   git clone https://github.com/sean-otoole/PACE.git
    ```
 2. Navigate to the project directory:
    ```bash
-   cd repository-name
+   cd your_path/PACE
    ```
 3. Install dependencies:
    ```bash
-   pip install -r requirements.txt  # For Python projects
+   pip install -r requirements.txt
    ```
 
 ## Usage
@@ -66,4 +75,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For any questions or suggestions, reach out to:
 - **Sean O'Toole** - [sean.otoole.bio@gmail.com](mailto:your-email@example.com)
 - GitHub: [sean-otoole](https://github.com/your-username)
-
