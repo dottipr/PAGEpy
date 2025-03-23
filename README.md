@@ -40,7 +40,7 @@ The codebase also includes various plotting scripts for evaluating the model's p
    ```
 
 ## Usage
-First open your script or notebook with the neccesary imports. This includes the all of the 
+To get started, first open your script or notebook and import the necessary packages:
 ```python
 import pace_plot
 import pso
@@ -52,27 +52,24 @@ import pace_utils
 
 pace_utils.init_cuda()
 ```
+This ensures that all required packages are imported and enables GPU memory growth.
 
-This will ensure you have the nccesary packages imported as well as enable memory growth for the gpu.
-
-Next you want to format your data so that it can be passed to other classes and functions within the PACE codebase.
-
+### Formatting the Data
+Next, you need to format your data so it can be passed to the relevant classes and functions within the PACE codebase.
 ```python
 current_data = FormatData(data_dir = '/home/your_data_dir/',
         test_set_size=0.2,
         random_seed=1,
         hvg_count = 1000)
 ```
+This instantiates the FormatData class, which requires a directory containing the following four files:
 
-This instantiate the FormatData class that requires a folder container the four file types discussed in the overview and they are:
-
-1. A counts matrix, where genes are rows and cells or samples are columns.
+1. A counts matrix, where genes are rows and cells/samples are columns.
 2. A text file containing the list of all gene names.
 3. A text file containing the list of all sample/barcode names.
 4. A CSV file with the target variable of interest.
 
-If you're working with a sparse Matrix of class "dgCMatrix" in R one can easily produce the file types that are required either in R or using an R API within python.
-
+If you're working with a sparse matrix of class `dgCMatrix` in R, you can easily produce the required file types either in R or using an R API within Python.
 ```R
 library(Matrix)
 
@@ -83,7 +80,7 @@ write.table(rownames(counts), "genes.txt", quote=FALSE, row.names=FALSE, col.nam
 write.table(colnames(counts), "barcodes.txt", quote=FALSE, row.names=FALSE, col.names=FALSE)
 ```
 
-The FormatData class will automatiically produce a list of genes that will be used for training the model. This list is saved within the local directory and entitled 'hvgs.pkl. This genes list is also present within the FormatData class object. My preference is to load it from a file as such:
+The `FormatData` class will automatically generate a list of genes for training the model, which is saved in the local directory as `hvgs.pkl`. This gene list is also available within the `FormatData` object. It’s preferred to load it from the file like this:
 
 ```python
 genes_path = '/home/your_path/hvgs.pkl'
@@ -92,31 +89,75 @@ with open(genes_path, 'rb') as f:
     current_genes = pickle.load(f)
 ```
 
-Now you can pass your genes list and FormatData object to the PredAnnModel class. 
+### Training the Model
+
+Now, you can pass the genes list and `FormatData` object to the `PredAnnModel` class.
 
 ```Python
 current_model = PredAnnModel(current_data,current_genes,num_epochs=50)
 ```
 
-The model offers a variety of customization options; however, only the input data, features list, and the number of epochs are required arguments. For a full list of potential input arguments, refer to the class docstring (e.g., help(PredAnnModel)). Many of these options relate to regularization techniques.
+The model offers many customization options, but only the input data, feature list, and number of epochs are required arguments. For a complete list of optional input arguments, refer to the class docstring (e.g., `help(PredAnnModel)`). Many of these options are related to regularization techniques.
 
 Several features make this model effective:
 
 1. The learning rate adjusts dynamically based on performance metrics during training.
-
-2. A percentage of the training data is hidden during each epoch to reduce overfitting and prevent memorization of the training set.
-
+2. A percentage of the training data is hidden during each epoch to reduce overfitting and prevent memorization.
 3. Target variable balancing is applied during the mini-batch training process.
+4. The input layer automatically scales based on the number of features passed to the model.
 
-4. The input layer automatically scales to accommodate the number of features passed to the model.
-
-Once the class is instantiated, the model will provide updates on training progress every 10 epochs.
-
-For example, here is the output after epoch 40:
+Once the class is instantiated, the model will provide updates on training progress every 10 epochs. For example, here is the output after epoch 40:
 
 ```console
 Epoch 40, Avg Outcome Loss: 0.3833, Train AUC: 0.9137, Train Accuracy: 0.8339, Test AUC: 0.8909, Test Accuracy: 0.8234
 ```
+### Evaluating the Model
+After training the model, you can view its progress and metrics by running:
+
+```python
+pace_plot.evaluate_model(current_model, current_data)
+```
+
+This will output:
+
+```console
+max train accuracy: 0.86
+max train auc: 0.93
+max test accuracy: 0.84
+max test auc: 0.91
+```
+![example_training_course.png](example_images/example_training_course.png)
+
+In this case, the model is predicting whether a cell is infected with HIV, using only the endogenous transcriptome.
+
+### Tuning the Model
+
+If you're not entirely satisfied with the model's performance, you can adjust various parameters and increase the number of epochs. You can also expand or narrow the feature set. Alternatively, you can use the Particle Swarm Optimization (PSO) algorithm included in PACE to optimize the feature set.
+
+You can execute the PSO algorithm as follows:
+```python
+best_solution, best_fitness = pso.binary_pso(current_genes, current_data, 200, 20)
+```
+
+The `binary_pso` function takes the current genes and splits the data into training and test sets. It randomly selects features for a specified number of population members (in this case, n=200). It then trains 200 models, each using one of the selected feature sets. The model architecture is similar to `PredAnnModel`, but with a simpler training regimen and fewer regularization elements. The models are trained for only 10 epochs. After training, the performance of each population member is used to decide whether features should be mutated. The parameters `C1` and `C2` control how individual and group performance influence these changes, while the momentum term `W` determines the likelihood of a feature change. After each generation (in this case, 20), the population members are updated. If the algorithm works well, there should be an improvement in the average and maximum test AUC values.
+
+Since this algorithm can take a long time to run, it’s helpful to monitor its progress. The `binary_pso` function will produce two local files that you can load and use to track progress:
+
+```python
+pso_df = pd.read_pickle("pso_df.pkl")
+pso_dict = pd.read_pickle("pso_dict.pkl")
+
+pace_plot.plot_pso_row_averages(pso_df)
+pace_plot.plot_hamming_distance(pso_dict)
+pace_plot.plot_sorted_frequencies(pso_dict, pso_df)
+```
+
+- plot_pso_row_averages will show how the population is improving over time.
+
+- plot_hamming_distance will track the average Hamming distance between population members, demonstrating the degree of similarity.
+
+- plot_sorted_frequencies will show the proportional representation of features in the first and latest generations.
+
 
 ## Project Organization
 
