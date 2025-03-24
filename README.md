@@ -1,7 +1,7 @@
-# PACE - Predictive Analysis of Cell Expression
+# PAGEpy - Predictive Analysis of Gene Expression in Python
 
 ## Overview
-PACE (Predictive Analysis of Cell Expression) is compatible with both single-cell and bulk RNA sequencing datasets. It requires four input files placed in a single-cell folder:
+PAGEpy (Predictive Analysis of Gene Expression in Python) is compatible with both single-cell and bulk RNA sequencing datasets. It requires four input files placed in a single-cell folder:
 
 1. A counts matrix, where genes are rows and cells or samples are columns.
 2. A text file containing the list of all gene names.
@@ -28,11 +28,11 @@ The codebase also includes various plotting scripts for evaluating the model's p
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/sean-otoole/PACE.git
+   git clone https://github.com/sean-otoole/PAGEpy.git
    ```
 2. Navigate to the project directory:
    ```bash
-   cd your_path/PACE
+   cd your_path/PAGEpy
    ```
 3. Install dependencies:
    ```bash
@@ -42,20 +42,20 @@ The codebase also includes various plotting scripts for evaluating the model's p
 ## Usage
 To get started, first open your script or notebook and import the necessary packages:
 ```python
-import pace_plot
+import PAGEpy_plot
 import pso
 from format_data_class import FormatData
 from pred_ann_model import PredAnnModel
 import pickle
 import pandas as pd
-import pace_utils
+import PAGEpy_utils
 
-pace_utils.init_cuda()
+PAGEpy_utils.init_cuda()
 ```
 This ensures that all required packages are imported and enables GPU memory growth.
 
 ### Formatting the Data
-Next, you need to format your data so it can be passed to the relevant classes and functions within the PACE codebase.
+Next, you need to format your data so it can be passed to the relevant classes and functions within the PAGEpy codebase.
 ```python
 current_data = FormatData(data_dir = '/home/your_data_dir/',
         test_set_size=0.2,
@@ -115,7 +115,7 @@ Epoch 40, Avg Outcome Loss: 0.3833, Train AUC: 0.9137, Train Accuracy: 0.8339, T
 After training the model, you can view its progress and metrics by running:
 
 ```python
-pace_plot.evaluate_model(current_model, current_data)
+PAGEpy_plot.evaluate_model(current_model, current_data)
 ```
 
 This will output:
@@ -132,7 +132,7 @@ In this case, the model is predicting whether a cell is infected with HIV, using
 
 ### Feature Set Optimization
 
-If you're not entirely satisfied with the model's performance, you can adjust various parameters and increase the number of epochs. You can also expand or narrow the feature set. Alternatively, you can use the Particle Swarm Optimization (PSO) algorithm included in PACE to optimize the feature set.
+If you're not entirely satisfied with the model's performance, you can adjust various parameters and increase the number of epochs. You can also expand or narrow the feature set. Alternatively, you can use the Particle Swarm Optimization (PSO) algorithm included in PAGEpy to optimize the feature set.
 
 You can execute the PSO algorithm as follows:
 ```python
@@ -147,9 +147,9 @@ Since this algorithm can take a long time to run, it’s helpful to monitor its 
 pso_df = pd.read_pickle("pso_df.pkl")
 pso_dict = pd.read_pickle("pso_dict.pkl")
 
-pace_plot.plot_pso_row_averages(pso_df)
-pace_plot.plot_hamming_distance(pso_dict)
-pace_plot.plot_sorted_frequencies(pso_dict, pso_df)
+PAGEpy_plot.plot_pso_row_averages(pso_df)
+PAGEpy_plot.plot_hamming_distance(pso_dict)
+PAGEpy_plot.plot_sorted_frequencies(pso_dict, pso_df)
 ```
 ![example_feature_set_performance_across_pso_generations.png](example_images/example_feature_set_performance_across_pso_generations.png)
 - plot_pso_row_averages will show how the population is improving over time.
@@ -175,14 +175,14 @@ ann_plot.evaluate_model(new_model, current_data)
 ## Project Organization
 
 ```
-📂 src/                           # Source code for the PACE project
-├── 📄 pace_plot.py               # Contains various functions for plotting the data and tracking progress
+📂 src/                           # Source code for the PAGEpy project
+├── 📄 PAGEpy_plot.py                # Contains various functions for plotting the data and tracking progress
 ├── 📄 format_data_class.py       # The FormatData class takes expression data and a target variable to instantiate an object suitable for PSO and training a deep neural network
 ├── 📄 multiple_folds_class.py    # The MultipleFolds class uses the FormatData class as input to generate multiple folds (default = 5) for cross validation
 ├── 📄 indvidual_fold_class.py    # The IndividualFold class generates a single fold which can than be passed directly to the PredAnnModel class
 ├── 📄 pred_ann_model.py          # Given either the FormatData or IndividualFold the PredAnnModel class instnatiates and trains a deep neural network for target variable prediction
 ├── 📄 pso.py                     # Contains a series of functions for a particle swarm optimzation algoriwthm for feature selection
-├── 📄 pace_utils.py              # Contains various helper functions
+├── 📄 PAGEpy_utils.py              # Contains various helper functions
 📂 example notebooks/             # Example python notebooks for code easy to understand exuection of the code
 ├── 📄 example_pipeline.ipynb     # An example notebook for running the pipeline
 ├── 📄 example_pso_check.ipynb    # An example notebook for checking the progress of the pipeline
