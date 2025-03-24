@@ -130,7 +130,7 @@ max test auc: 0.91
 
 In this case, the model is predicting whether a cell is infected with HIV, using only the endogenous transcriptome.
 
-### Tuning the Model
+### Feature Set Optimization
 
 If you're not entirely satisfied with the model's performance, you can adjust various parameters and increase the number of epochs. You can also expand or narrow the feature set. Alternatively, you can use the Particle Swarm Optimization (PSO) algorithm included in PACE to optimize the feature set.
 
@@ -151,19 +151,32 @@ pace_plot.plot_pso_row_averages(pso_df)
 pace_plot.plot_hamming_distance(pso_dict)
 pace_plot.plot_sorted_frequencies(pso_dict, pso_df)
 ```
-
+![example_feature_set_performance_across_pso_generations.png](example_images/example_feature_set_performance_across_pso_generations.png)
 - plot_pso_row_averages will show how the population is improving over time.
 
+![example_hamming_distance_plot.png](example_images/example_hamming_distance_plot.png)
 - plot_hamming_distance will track the average Hamming distance between population members, demonstrating the degree of similarity.
 
+![example_features_frequencies_plot.png](example_images/example_features_frequencies_plot.png)
 - plot_sorted_frequencies will show the proportional representation of features in the first and latest generations.
 
+The output of the PSO will return the best performing feature set as well as its assocaited score. Additionally, the best performing feature set will be written within the local directory as such: `pso_genes_result.pkl`.
+
+Subsequently, you can use the optimized feature set to then retrain the model and potentially produce an improved score with regards to the Test set AUC value as such:
+
+```python
+with open('pso_genes_result.pkl', 'wb') as f:
+    pickle.dump(pso_genes, f)
+      
+new_model = PredAnnModel(current_data,pso_genes,num_epochs=50)
+ann_plot.evaluate_model(new_model, current_data)
+```
 
 ## Project Organization
 
 ```
 📂 src/                           # Source code for the PACE project
-├── 📄 pace_plot.py                # Contains various functions for plotting the data and tracking progress
+├── 📄 pace_plot.py               # Contains various functions for plotting the data and tracking progress
 ├── 📄 format_data_class.py       # The FormatData class takes expression data and a target variable to instantiate an object suitable for PSO and training a deep neural network
 ├── 📄 multiple_folds_class.py    # The MultipleFolds class uses the FormatData class as input to generate multiple folds (default = 5) for cross validation
 ├── 📄 indvidual_fold_class.py    # The IndividualFold class generates a single fold which can than be passed directly to the PredAnnModel class
