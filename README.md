@@ -183,14 +183,9 @@ ann_plot.evaluate_model(new_model, current_data)
 ├── 📄 pred_ann_model.py          # Given either the FormatData or IndividualFold the PredAnnModel class instnatiates and trains a deep neural network for target variable prediction
 ├── 📄 pso.py                     # Contains a series of functions for a particle swarm optimzation algoriwthm for feature selection
 ├── 📄 PAGEpy_utils.py              # Contains various helper functions
-📂 example notebooks/             # Example python notebooks for code easy to understand exuection of the code
-├── 📄 example_pipeline.ipynb     # An example notebook for running the pipeline
-├── 📄 example_pso_check.ipynb    # An example notebook for checking the progress of the pipeline
 📂 example_images/                # Contains example images for the readme file
 📄 README.md                      # Project description and repository guide
 📄 LICENSE                        # MIT license
-📄 requirements.txt               # project depdencies
-
 ```
 
 ## Configuration
