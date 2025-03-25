@@ -494,7 +494,8 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W = 1, C1 =
         
         pso_df.loc[len(pso_df)] = fitness_scores
         pso_df.to_pickle("pso_df.pkl")
-        
+
+        dna_dict[gen+1] = population
         pickle.dump(dna_dict, open("pso_dict.pkl", "wb"))
         
         # Update the average score for the next iteration
