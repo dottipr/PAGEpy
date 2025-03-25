@@ -20,7 +20,6 @@ The codebase also includes various plotting scripts for evaluating the model's p
 - [Installation](#Installation)
 - [Usage](#Usage)
 - [Project Organization](#Project-Organization)
-- [Configuration](#Configuration)
 - [Contributing](#Contributing)
 - [License](#License)
 - [Contact](#Contact)
@@ -187,9 +186,6 @@ ann_plot.evaluate_model(new_model, current_data)
 📄 README.md                      # Project description and repository guide
 📄 LICENSE                        # MIT license
 ```
-
-## Configuration
-Explain any necessary environment variables or configuration settings.
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
