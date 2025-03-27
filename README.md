@@ -348,11 +348,11 @@ Performs feature selection using a Binary Particle Swarm Optimization (PSO) algo
 **Positional arguments**
 - current_genes (list): A list of gene names considered for feature selection.
 - current_data (pd.DataFrame): A DataFrame containing gene expression values with samples as rows and genes as columns.
+- POP_SIZE (int): The number of particles (candidate solutions) in the swarm.
+- N_GENERATIONS (int): The number of iterations for the PSO algorithm.
 
 **Keyword arguments**
   
-- POP_SIZE (int): The number of particles (candidate solutions) in the swarm.
-- N_GENERATIONS (int): The number of iterations for the PSO algorithm.
 - W (float, optional, default=1): Inertia weight controlling the influence of previous velocity on the new velocity.
 - C1 (float, optional, default=2): Cognitive coefficient influencing how much a particle follows its personal best position.
 - C2 (float, optional, default=1.5): Social coefficient influencing how much a particle follows the global best position.
