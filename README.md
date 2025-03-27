@@ -231,6 +231,14 @@ FormatData(
 - `barcodes` (list): Cell barcode identifiers.
 - `selected_genes` (list): Genes selected through differential expression testing or highly variable gene identification
 
+**Methods (Automatically Called)**
+- `self.construct_and_process_anndata()`: Constructs the anndata object.
+- `self.encode_labels()`: Binarizes the target variable for training the model.
+- `self.retrieve_counts_df()`: Constructs a counts data frame.
+- `self.retrieve_all_genes()`: Attaches the list of all genes/features to the FormatData object.
+- `self.scale_data()`: Scales and centers the data.
+- `self.establish_test_train()`: Splits the data into test and train sets and performs feature selection using only the training set.
+
 **Example Usage**
 ```python
 from mymodule import FormatData
