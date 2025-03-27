@@ -55,6 +55,7 @@ class FormatData:
         self.test_indices = None
         self.genes = None
         self.barcodes = None
+        self.selected_genes = None
 
         # Automatically execute the data preparation pipeline
         self.construct_and_process_anndata()
