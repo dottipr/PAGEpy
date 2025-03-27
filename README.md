@@ -190,7 +190,7 @@ ann_plot.evaluate_model(new_model, current_data)
 
 ## Function and class descriptions
 
-### `FormatData` class
+### :red_circle: `FormatData` class
 
 A class for preparing and formatting gene expression data for machine learning pipelines.
 
@@ -256,7 +256,7 @@ data_prep = FormatData(
 print(data_prep.selected_genes)
 ```
 
-### `PredAnnModel` class
+### :red_circle: `PredAnnModel` class
 
 **Initialization**
 ```python
@@ -341,7 +341,7 @@ print(model.test_auc_list)
 
 <br>
 
-### `binary_pso` function
+### :red_circle: `binary_pso` function
 
 Performs feature selection using a Binary Particle Swarm Optimization (PSO) algorithm to optimize a classification model based on gene expression data.
 
@@ -370,7 +370,7 @@ Performs feature selection using a Binary Particle Swarm Optimization (PSO) algo
 best_solution, best_fitness = pso.binary_pso(current_genes, current_data, 100, 20)
 ```
 
-### Plotting Functions
+### :bar_chart: Plotting Functions
 
 Several functions are available with the package:
 evaluate_model(input_model, input_data)
