@@ -194,6 +194,20 @@ ann_plot.evaluate_model(new_model, current_data)
 
 A class for preparing and formatting gene expression data for machine learning pipelines.
 
+**Initialization**
+
+```python
+FormatData(
+    data_dir='/home/input_data_folder/'',
+    test_set_size=0.2,
+    random_seed=1,
+    hvg_count=1000,
+    pval_cutoff=0.01,
+    gene_selection='HVG',
+    pval_correction='bonferroni'
+)
+```
+
 **Parameters**
 - `data_dir` (str, default='/home/input_data_folder/'): Path to the directory containing necessary input files.
 - `test_set_size` (float, default=0.2): Fraction of the dataset to be used as the test set.
@@ -224,17 +238,101 @@ from mymodule import FormatData
 # Initialize with custom parameters
 data_prep = FormatData(
     data_dir='/path/to/data',
-    test_set_size=0.25,
-    random_seed=42,
+    test_set_size=0.20,
     hvg_count=1500,
-    pval_cutoff=0.05,
-    gene_selection='Diff',
-    pval_correction='fdr'
+    gene_selection='HVG',
+    pval_correction='Bonferroni'
 )
 
 # Access selected genes
 print(data_prep.selected_genes)
 ```
+<br>
+<be>
+
+### `PredAnnModel`
+
+**Initialization**
+```python
+PredAnnModel(
+    input_data,
+    current_genes,
+    learning_rate=0.01,
+    dropout_rate=0.3,
+    balance=True,
+    l2_reg=0.2,
+    batch_size=64,
+    num_epochs=5000,
+    report_frequency=1,
+    auc_threshold=0.95,
+    clipnorm=2.0,
+    simplify_categories=True,
+    holdout_size=0.5,
+    multiplier=3,
+    auc_thresholds=[0.6, 0.7, 0.8, 0.85, 0.88, 0.89, 0.90, 0.91, 0.92],
+    lr_dict={
+        0.6:  0.005,
+        0.7:  0.001,
+        0.8:  0.0005,
+        0.85: 0.0005,
+        0.88: 0.0005,
+        0.89: 0.0005,
+        0.9:  0.0005,
+        0.91: 0.0005,
+        0.92: 0.0005
+    }
+)
+```
+
+**Paramters**
+
+- `input_data` (FormatData object): Processed dataset used for training, containing gene expression values and labels.
+- `current_genes` (list): A non-empty list of genes used as model features.
+- `learning_rate` (float, default=0.01): Initial learning rate for the model.
+- `dropout_rate` (float, default=0.3): Dropout rate to prevent overfitting.
+- `balance` (bool, default=True): Whether to balance technology and outcome variables during training.
+- `l2_reg` (float, default=0.2): Strength of L2 regularization.
+- `batch_size` (int, default=64): Number of samples per training batch.
+- `num_epochs` (int, default=5000): Maximum number of training epochs.
+- `report_frequency` (int, default=1): Frequency of logging model performance metrics.
+- `auc_threshold` (float, default=0.95): AUC threshold for early stopping.
+- `clipnorm` (float, default=2.0): Maximum gradient norm to prevent exploding gradients.
+- `simplify_categories` (bool, default=True): Whether to simplify data categories before training.
+- `holdout_size` (float, default=0.5): Fraction of data withheld for evaluation.
+- `multiplier` (int, default=3): Scaling factor for the number of nodes in most layers of the neural network.
+- `auc_thresholds` (list, default=[0.6, 0.7, 0.8, 0.85, 0.88, 0.89, 0.90, 0.91, 0.92]): AUC values at which the learning rate is adjusted.
+- `lr_dict` (dict): Dictionary mapping AUC thresholds to corresponding learning rates.
+
+**Attributes**
+After initialization, the class contains the following attributes:
+- `outcome_classifier` (keras.Model): The deep learning model for classification.
+- `test_accuracy_list`, `train_accuracy_list` (list): Accuracy metrics collected during training.
+- `test_auc_list`, `train_auc_list` (list): AUC values for test and training sets.
+- `current_epoch_list` (list): Tracks epochs where metrics were logged.
+
+**Methods (Automatically Called)**
+- `set_mixed_precision()`: Enables mixed-precision training for improved performance.
+- `subset_input_data()`: Filters input data based on selected genes.
+- `build_outcome_classifier()`: Constructs the ANN model.
+- `train_the_model()`: Runs the training process.
+
+**Example Usage**
+```python
+from mymodule import PredAnnModel, FormatData
+
+# Load and process input data
+data_prep = FormatData(data_dir='/path/to/data')
+
+# Define a list of genes to use
+selected_genes = ['GeneA', 'GeneB', 'GeneC']
+
+# Initialize and train the model
+model = PredAnnModel(input_data=data_prep, current_genes=selected_genes)
+
+# Access model performance metrics
+print(model.test_auc_list)
+```
+
 <br>
 <be>
 
