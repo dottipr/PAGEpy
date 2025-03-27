@@ -255,10 +255,8 @@ data_prep = FormatData(
 # Access selected genes
 print(data_prep.selected_genes)
 ```
-<br>
 
 ### `PredAnnModel` class
-
 
 **Initialization**
 ```python
