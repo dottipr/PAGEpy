@@ -368,7 +368,7 @@ def progress_based_adjustment(avg_fitness, prev_avg_fitness, C1, C2, progress_tr
     
 # PSO Main Loop
 
-def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W = 1, C1 = 2, C2 = 1.5, reps = 4, frequent_reporting = False):
+def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W = 1, C1 = 2, C2 = 1.5, reps = 4, frequent_reporting = False, adaptive_metrics = False):
     
     start_time = time.time()
     
@@ -462,11 +462,9 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W = 1, C1 =
                 g_best_score = round(max(smoothed_p_best_scores_latest),2)
 
         # Apply progress-based adjustment for C1 and C2
-        C1, C2 = progress_based_adjustment(avg_fitness, prev_avg_fitness, C1, C2, progress_tracker)
-        # print('average fitness:',avg_fitness)
-                    
-        # print("Current C1:{}; Current C2: {}".format(C1,C2))
-        
+        if adaptive_metrics == True:
+            C1, C2 = progress_based_adjustment(avg_fitness, prev_avg_fitness, C1, C2, progress_tracker)
+                            
         # Update velocities using smoothed p_best
         scaling_factor = min(1.0, (gen + 1) / 3)  # Scale up after 3 generations
         r1 = scaling_factor * np.random.rand(POP_SIZE, FEATURE_COUNT)
