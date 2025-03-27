@@ -190,7 +190,32 @@ ann_plot.evaluate_model(new_model, current_data)
 
 ## Function and class descriptions
 
-XXX
+###`binary_pso`
+
+Performs feature selection using a Binary Particle Swarm Optimization (PSO) algorithm to optimize a classification model based on gene expression data.
+
+**Positional arguments**
+-current_genes (list): A list of gene names considered for feature selection.
+-current_data (pd.DataFrame): A DataFrame containing gene expression values with samples as rows and genes as columns.
+**Keyword arguments**
+-POP_SIZE (int): The number of particles (candidate solutions) in the swarm.
+-N_GENERATIONS (int): The number of iterations for the PSO algorithm.
+-W (float, optional, default=1): Inertia weight controlling the influence of previous velocity on the new velocity.
+-C1 (float, optional, default=2): Cognitive coefficient influencing how much a particle follows its personal best position.
+-C2 (float, optional, default=1.5): Social coefficient influencing how much a particle follows the global best position.
+-reps (int, optional, default=4): The number of times each feature set is evaluated to account for variability.
+-frequent_reporting (bool, optional, default=False): If True, logs intermediate results more frequently.
+-adaptive_metrics (bool, optional, default=False): If True, dynamically adjusts evaluation criteria based on observed performance trends.
+
+**Returns**
+
+-best_solution (list): The best performing subset of genes selected.
+-best_fitness (float): The highest achieved evaluation metric (e.g., AUC).
+
+**Example Usage**
+```python
+best_solution, best_fitness = pso.binary_pso(current_genes, current_data, 100, 20)
+```
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
