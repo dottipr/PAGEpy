@@ -362,7 +362,7 @@ Performs feature selection using a Binary Particle Swarm Optimization (PSO) algo
 best_solution, best_fitness = pso.binary_pso(current_genes, current_data, 100, 20)
 ```
 <br>
-###Plotting functions
+### Plotting functions
 
 Several functions are available with the package:
 evaluate_model(input_model, input_data)
