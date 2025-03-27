@@ -17,7 +17,10 @@ class FormatData:
         data_dir = '/home/jovyan/ANN_HIV_pipeline/HIV_data/',
         test_set_size=0.2,
         random_seed=1,
-        hvg_count = 1000
+        hvg_count = 1000,
+        pval_cutoff = 0.01,
+        gene_selection = 'HVG',
+        pval_correction = 'bonferroni'
     ):
         """
         Initializes the RcDataPreparation class with specified parameters.
@@ -26,12 +29,17 @@ class FormatData:
         - data_dir (str): Path to the holder containing the neccesary files.
         - test_set_size (float): Fraction of data to be used as a test set (default: 0.2).
         - random_seed (int): Seed for reproducible dataset splits (default: 1).
+        - hvg_count (int): number of HVGs for selection
+        - gene_selection (str): method of feature selection can either be 'HVG' or 'Diff'
         """
 
         self.data_dir = data_dir
         self.test_set_size = test_set_size
         self.random_seed = random_seed
         self.hvg_count = hvg_count
+        self.pval_cutoff = pval_cutoff
+        self.gene_selection = gene_selection
+        self.pval_correction = pval_correction
         
         # Initialize placeholders for class attributes
         self.adata = None
@@ -42,6 +50,7 @@ class FormatData:
         self.y_train = None
         self.y_test = None
         self.genes_list = None
+        self.selected_genes = None
         self.train_indices = None
         self.test_indices = None
         self.genes = None
@@ -82,23 +91,15 @@ class FormatData:
             self.adata = sc.AnnData(X.T)
             self.adata.obs_names = self.barcodes  # Assign cell barcodes
             self.adata.var_names = self.genes  # Assign gene names
-            # Load the metadata infection status as metadata            
+            # Load the metadata status as metadata            
             metadata_df = pd.read_csv(target_var_path)
-            # metadata_df = metadata_df.set_index('Sample')
             # Assign the DataFrame to adata.obs
             self.adata.obs = metadata_df
             print("Anndata successfully constructed.")
-            
             # Normalize each cell by total counts (to 10,000 counts per cell)
             sc.pp.normalize_total(self.adata, target_sum=1e4)
             # Logarithmize the data
             sc.pp.log1p(self.adata)
-            # sc.pp.highly_variable_genes(self.adata, n_top_genes=self.hvg_count, n_bins=100)
-            # sc.pl.highly_variable_genes(adata)
-            # highly_variable_genes = self.adata.var[self.adata.var['highly_variable']].index
-            # highly_variable_genes_list = self.adata.var[self.adata.var['highly_variable']].index.tolist()
-            # with open("hvgs.pkl", "wb") as f:
-            #     pickle.dump(highly_variable_genes_list, f)
             print('Anndata object counts are now normalized.')
         except Exception as e:
             raise ValueError(f"Failed to construct anndata object: {e}")
@@ -152,20 +153,22 @@ class FormatData:
             stratify=self.target_variable
         )
 
-        # Select only HVGs from the training set
+        # Selects features from only the training set
         adata_train = self.adata[self.train_indices].copy()
-
-        # Compute HVGs only from the training data
-        sc.pp.highly_variable_genes(adata_train, n_top_genes=self.hvg_count, n_bins=100)
-
-        # Get the list of HVGs
-        highly_variable_genes = adata_train.var.index[adata_train.var['highly_variable']].tolist()
-
-        # Save HVGs
-        with open("hvgs.pkl", "wb") as f:
-            pickle.dump(highly_variable_genes, f)
-
-        print(f"HVGs selected from training set and applied to both train/test sets. {len(highly_variable_genes)} genes retained.")
+        
+        if self.gene_selection == 'HVG':
+            # Compute HVGs only from the training data
+            sc.pp.highly_variable_genes(adata_train, n_top_genes=self.hvg_count, n_bins=100)
+            # Get the list of HVGs
+            self.selected_genes = adata_train.var.index[adata_train.var['highly_variable']].tolist()
+        elif self.gene_selection == 'Diff':
+            sc.tl.rank_genes_groups(adata_train,'Status',method='t-test', key_added = "t-test", corr_method = self.pval_correction)
+            sig_genes = sc.get.rank_genes_groups_df(adata_train, group = self.adata.obs['Status'][0], key='t-test', pval_cutoff=self.pval_cutoff)['names']
+            self.selected_genes = sig_genes.to_list()  
+        # Save selected_genes
+        with open("feature_set.pkl", "wb") as f:
+            pickle.dump(self.selected_genes, f)
+        print(f"The total length of the genes list or feature set is: {len(self.selected_genes)}.")
 
         # Save training sample names
         with open('train_samples.txt', 'w') as f:
