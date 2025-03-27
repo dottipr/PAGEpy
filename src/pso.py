@@ -1,21 +1,12 @@
 import os
-os.environ["R_HOME"] = "/envs/rtf/v0.0.0/lib/R"
-
-# Set R environment variables
-os.environ["PATH"] = "/envs/rtf/v0.0.0/bin:" + os.environ["PATH"]
-
 import subprocess
 # from multiprocessing import Pool, set_start_method
 import warnings
 warnings.filterwarnings('ignore')  # Ignores all warnings
-
 # Set the logging level to ERROR (suppress info-level and warning-level messages)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-
 import os
 import sys
-
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import Sequential, layers, models
@@ -494,7 +485,7 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W = 1, C1 =
         
         pso_df.loc[len(pso_df)] = fitness_scores
         pso_df.to_pickle("pso_df.pkl")
-
+        
         dna_dict[gen+1] = population
         pickle.dump(dna_dict, open("pso_dict.pkl", "wb"))
         
