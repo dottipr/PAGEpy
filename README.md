@@ -176,13 +176,13 @@ ann_plot.evaluate_model(new_model, current_data)
 
 ```
 📂 src/                           # Source code for the PAGEpy project
-├── 📄 PAGEpy_plot.py                # Contains various functions for plotting the data and tracking progress
+├── 📄 PAGEpy_plot.py             # Contains various functions for plotting the data and tracking progress
 ├── 📄 format_data_class.py       # The FormatData class takes expression data and a target variable to instantiate an object suitable for PSO and training a deep neural network
 ├── 📄 multiple_folds_class.py    # The MultipleFolds class uses the FormatData class as input to generate multiple folds (default = 5) for cross validation
 ├── 📄 indvidual_fold_class.py    # The IndividualFold class generates a single fold which can than be passed directly to the PredAnnModel class
 ├── 📄 pred_ann_model.py          # Given either the FormatData or IndividualFold the PredAnnModel class instnatiates and trains a deep neural network for target variable prediction
 ├── 📄 pso.py                     # Contains a series of functions for a particle swarm optimzation algoriwthm for feature selection
-├── 📄 PAGEpy_utils.py              # Contains various helper functions
+├── 📄 PAGEpy_utils.py            # Contains various helper functions
 📂 example_images/                # Contains example images for the readme file
 📄 README.md                      # Project description and repository guide
 📄 LICENSE                        # MIT license
