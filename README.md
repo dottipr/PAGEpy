@@ -190,14 +190,62 @@ ann_plot.evaluate_model(new_model, current_data)
 
 ## Function and class descriptions
 
-### `binary_pso`
+### `FormatData` class
+
+A class for preparing and formatting gene expression data for machine learning pipelines.
+
+**Parameters**
+- `data_dir` (str, default='/home/input_data_folder/'): Path to the directory containing necessary input files.
+- `test_set_size` (float, default=0.2): Fraction of the dataset to be used as the test set.
+- `random_seed` (int, default=1): Seed for reproducible dataset splits.
+- `hvg_count` (int, default=1000): Number of highly variable genes (HVGs) to select.
+- `pval_cutoff` (float, default=0.01): Significance threshold for gene selection when using differential expression analysis.
+- `gene_selection` (str, default='HVG'): Method of feature selection, can be either: 'HVG' (Highly Variable Genes) or  'Diff' (Differential Expression)
+- `pval_correction` (str, default='bonferroni'): Method used for multiple hypothesis testing correction.
+
+**Attributes**
+  
+- `adata` (AnnData): Stores single-cell expression data.
+- `counts_df` (pd.DataFrame): DataFrame of raw count data.
+- `target_variable` (array-like): Labels or metadata used for classification.
+- `x_train`, `x_test` (pd.DataFrame): Training and test feature matrices.
+- `y_train`, `y_test` (array-like): Corresponding training and test labels.
+- `genes_list` (list): List of all available genes in the dataset.
+- `selected_genes` (list): Subset of genes chosen through HVG or differential expression analysis.
+- `train_indices`, `test_indices` (array-like): Indices of samples assigned to training and test sets.
+- `genes` (list): Processed gene identifiers.
+- `barcodes` (list): Cell barcode identifiers.
+- `selected_genes` (list): Genes selected through differential expression testing or highly variable gene identification
+
+**Example Usage**
+```python
+from mymodule import FormatData
+
+# Initialize with custom parameters
+data_prep = FormatData(
+    data_dir='/path/to/data',
+    test_set_size=0.25,
+    random_seed=42,
+    hvg_count=1500,
+    pval_cutoff=0.05,
+    gene_selection='Diff',
+    pval_correction='fdr'
+)
+
+# Access selected genes
+print(data_prep.selected_genes)
+```
+<br>
+<be>
+
+### `binary_pso` function
 
 Performs feature selection using a Binary Particle Swarm Optimization (PSO) algorithm to optimize a classification model based on gene expression data.
 
 **Positional arguments**
 - current_genes (list): A list of gene names considered for feature selection.
 - current_data (pd.DataFrame): A DataFrame containing gene expression values with samples as rows and genes as columns.
-- 
+
 **Keyword arguments**
   
 - POP_SIZE (int): The number of particles (candidate solutions) in the swarm.
@@ -211,8 +259,8 @@ Performs feature selection using a Binary Particle Swarm Optimization (PSO) algo
 
 **Returns**
 
--best_solution (list): The best performing subset of genes selected.
--best_fitness (float): The highest achieved evaluation metric (e.g., AUC).
+- best_solution (list): The best performing subset of genes selected.
+- best_fitness (float): The highest achieved evaluation metric (e.g., AUC).
 
 **Example Usage**
 ```python
