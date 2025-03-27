@@ -248,8 +248,6 @@ data_prep = FormatData(
 print(data_prep.selected_genes)
 ```
 <br>
-<be>
-
 ### `PredAnnModel`
 
 **Initialization**
@@ -334,7 +332,6 @@ print(model.test_auc_list)
 ```
 
 <br>
-<be>
 
 ### `binary_pso` function
 
@@ -363,6 +360,42 @@ Performs feature selection using a Binary Particle Swarm Optimization (PSO) algo
 **Example Usage**
 ```python
 best_solution, best_fitness = pso.binary_pso(current_genes, current_data, 100, 20)
+```
+<br>
+### Plotting functions
+
+Several functions are available with the package:
+evaluate_model(input_model, input_data)
+Plots model training and evaluation metrics over epochs:
+
+Training and test accuracy with chance level baselines.
+
+Training and test AUC scores.
+
+`plot_pso_row_averages(df)`
+- Visualizes the performance of feature sets across generations:
+Plots the mean, max, min, and standard deviation of AUC values per generation.
+
+`plot_hamming_distance(input_dict)`
+- Tracks diversity in feature sets over generations:
+Computes and plots the average Hamming distance among feature sets in each generation.
+
+`plot_sorted_frequencies(loaded_dict, loaded_df)`
+- Compares feature selection frequencies between the first and latest generation:
+Sorts and normalizes the frequency of selected features (1s) and plots the changes over time.
+
+**Example Usage**
+```python
+import pandas as pd
+import PAGEpy_plot
+
+pso_df = pd.read_pickle("pso_df.pkl")
+pso_dict = pd.read_pickle("pso_dict.pkl")
+PAGEpy_plot.plot_pso_row_averages(pso_df)
+
+PAGEpy_plot.plot_hamming_distance(pso_dict)
+
+PAGEpy_plot.plot_sorted_frequencies(pso_dict,pso_df)
 ```
 
 ## License
