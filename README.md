@@ -248,7 +248,9 @@ data_prep = FormatData(
 print(data_prep.selected_genes)
 ```
 <br>
-### `PredAnnModel`
+
+### `PredAnnModel` class
+
 
 **Initialization**
 ```python
