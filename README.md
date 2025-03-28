@@ -1,7 +1,7 @@
 # PAGEpy - Predictive Analysis of Gene Expression with Python
 
 ## Overview
-PAGEpy (Predictive Analysis of Gene Expression in Python) is compatible with both single-cell and bulk RNA sequencing datasets. It requires four input files placed in a single-cell folder:
+PAGEpy (Predictive Analysis of Gene Expression in Python) is compatible with both single-cell and bulk RNA sequencing datasets. It requires four input files placed in a single directory:
 
 1. A counts matrix, where genes are rows and cells or samples are columns.
 2. A text file containing the list of all gene names.
