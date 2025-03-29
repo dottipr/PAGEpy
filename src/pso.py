@@ -145,11 +145,11 @@ class PredAnnModel:
         input_data,
         current_genes,
         learning_rate = 0.001,
-        dropout_rate=0, #0.3,
-        balance=True, #True,
+        dropout_rate=0,
+        balance=True,
         l2_reg=0.2,
         batch_size=512,
-        num_epochs=10,
+        num_epochs=50,
         report_frequency=29,
         auc_threshold=0.999,
         clipnorm=0,
@@ -368,7 +368,7 @@ def progress_based_adjustment(avg_fitness, prev_avg_fitness, C1, C2, progress_tr
     
 # PSO Main Loop
 
-def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W = 1, C1 = 2, C2 = 1.5, reps = 4, frequent_reporting = False, adaptive_metrics = False):
+def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W = 1, C1 = 2, C2 = 2, reps = 4, frequent_reporting = False, adaptive_metrics = False):
     
     start_time = time.time()
     
@@ -446,30 +446,24 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W = 1, C1 =
         # Store fitness scores history for smoothing
         p_best_scores_history[gen, :] = fitness_scores
 
-        # Apply moving average smoothing to fitness scores
-        if gen >= 2:  # Ensure enough data points for smoothing
-            smoothed_p_best_scores = moving_average(p_best_scores_history[:gen+1, :], window_size=3)
-            smoothed_p_best_scores_latest = smoothed_p_best_scores[-1, :]  # Latest smoothed scores
+        # Update personal bests based on raw fitness scores, not smoothed ones
+        improved = fitness_scores > p_best_scores  
+        p_best[improved] = population[improved]  # Store best positions
+        p_best_scores[improved] = fitness_scores[improved]  # Store best actual scores
 
-            # Update personal bests based on smoothed scores
-            improved = fitness_scores > smoothed_p_best_scores_latest  
-            p_best[improved] = population[improved]  # Store best positions
-            p_best_scores[improved] = smoothed_p_best_scores_latest[improved]  # Store best smoothed scores
-
-            # Update global best
-            if max(smoothed_p_best_scores_latest) > g_best_score:
-                g_best = p_best[np.argmax(smoothed_p_best_scores_latest)]
-                g_best_score = round(max(smoothed_p_best_scores_latest),2)
+        true_best_idx = np.argmax(p_best_scores)  # Use actual best scores
+        g_best = p_best[true_best_idx]  # Assign corresponding best position
+        g_best_score = p_best_scores[true_best_idx]
 
         # Apply progress-based adjustment for C1 and C2
         if adaptive_metrics == True:
             C1, C2 = progress_based_adjustment(avg_fitness, prev_avg_fitness, C1, C2, progress_tracker)
                             
         # Update velocities using smoothed p_best
-        scaling_factor = min(1.0, (gen + 1) / 3)  # Scale up after 3 generations
-        r1 = scaling_factor * np.random.rand(POP_SIZE, FEATURE_COUNT)
-        r2 = scaling_factor * np.random.rand(POP_SIZE, FEATURE_COUNT)        
-        velocities = scaling_factor * (
+        # scaling_factor = min(1.0, (gen + 1) / 3)  # Scale up after 3 generations
+        r1 = np.random.rand(POP_SIZE, FEATURE_COUNT)
+        r2 = np.random.rand(POP_SIZE, FEATURE_COUNT)        
+        velocities = (
             W * velocities +
             C1 * r1 * (p_best - population) +
             C2 * r2 * (g_best - population))
