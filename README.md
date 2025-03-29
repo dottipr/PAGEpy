@@ -342,8 +342,6 @@ model = PredAnnModel(input_data=data_prep, current_genes=selected_genes)
 print(model.test_auc_list)
 ```
 
-<br>
-
 ### :red_circle: `binary_pso` function
 
 Performs feature selection using a Binary Particle Swarm Optimization (PSO) algorithm to optimize a classification model based on gene expression data.
