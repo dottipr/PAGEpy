@@ -14,7 +14,7 @@ import pickle
 class FormatData:
     def __init__(
         self,
-        data_dir = '/home/jovyan/ANN_HIV_pipeline/HIV_data/',
+        data_dir = '/your/local/dir/data/',
         test_set_size=0.2,
         random_seed=1,
         hvg_count = 1000,
