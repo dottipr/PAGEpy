@@ -66,7 +66,7 @@ current_data = FormatData(data_dir = '/home/your_data_dir/',
 ```
 This instantiates the FormatData class, which requires a directory containing the following four files:
 
-1. A counts matrix, where genes are rows and cells/samples are columns.
+1. A counts matrix (.mtx), where genes are rows and cells/samples are columns.
 2. A text file containing the list of all gene names.
 3. A text file containing the list of all sample/barcode names.
 4. A CSV file with the target variable of interest.
@@ -244,8 +244,8 @@ FormatData(
 - `random_seed` (int, default=1): Seed for reproducible dataset splits.
 - `hvg_count` (int, default=1000): Number of highly variable genes (HVGs) to select.
 - `pval_cutoff` (float, default=0.01): Significance threshold for gene selection when using differential expression analysis.
-- `gene_selection` (str, default='HVG'): Method of feature selection, can be either: 'HVG' (Highly Variable Genes) or  'Diff' (Differential Expression)
-- `pval_correction` (str, default='bonferroni'): Method used for multiple hypothesis testing correction.
+- `gene_selection` (str, default='HVG'): The method of feature selection, can be either: 'HVG' (Highly Variable Genes) or  'Diff' (Differential Expression)
+- `pval_correction` (str, default='bonferroni'): Method used for multiple hypothesis testing correction. `'benjamini-hochberg'` is another option.
 
 **Attributes**
   
@@ -325,18 +325,18 @@ PredAnnModel(
 - `input_data` (FormatData object): Processed dataset used for training, containing gene expression values and labels.
 - `current_genes` (list): A non-empty list of genes used as model features.
 - `learning_rate` (float, default=0.01): Initial learning rate for the model.
-- `dropout_rate` (float, default=0.3): Dropout rate to prevent overfitting.
-- `balance` (bool, default=True): Whether to balance technology and outcome variables during training.
-- `l2_reg` (float, default=0.2): Strength of L2 regularization.
+- `dropout_rate` (float, default=0.3): Dropout rate, corresponding to the fraction of neurons that will be randomly inactivated during training, to prevent overfitting. 
+- `balance` (bool, default=True): Whether to balance the target variable during mini-batch training.
+- `l2_reg` (float, default=0.2): Strength of L2 regularization, large values add a greater penalty term to the loss function forcing the model to keep the weights small and distributed.
 - `batch_size` (int, default=64): Number of samples per training batch.
 - `num_epochs` (int, default=5000): Maximum number of training epochs.
 - `report_frequency` (int, default=1): Frequency of logging model performance metrics.
 - `auc_threshold` (float, default=0.95): AUC threshold for early stopping.
 - `clipnorm` (float, default=2.0): Maximum gradient norm to prevent exploding gradients.
 - `simplify_categories` (bool, default=True): Whether to simplify data categories before training.
-- `holdout_size` (float, default=0.5): Fraction of data withheld for evaluation.
-- `multiplier` (int, default=3): Scaling factor for the number of nodes in most layers of the neural network.
-- `auc_thresholds` (list, default=[0.6, 0.7, 0.8, 0.85, 0.88, 0.89, 0.90, 0.91, 0.92]): AUC values at which the learning rate is adjusted.
+- `holdout_size` (float, default=0.5): Fraction of data withheld for training during each training epoch. Reduces the rate of dataset memorization.
+- `multiplier` (int, default=3): Scaling factor for the number of nodes in most layers of the neural network. Large values correspond to a wider network.
+- `auc_thresholds` (list, default=[0.6, 0.7, 0.8, 0.85, 0.88, 0.89, 0.90, 0.91, 0.92]): AUC values at which the learning rate is adjusted. The test AUC value is continuously monitored and the learning rate can change at each of these supplied thresholds in a manner corresponding to the key-value pairs within the `lr_dict`.
 - `lr_dict` (dict): Dictionary mapping AUC thresholds to corresponding learning rates.
 
 **Attributes**
@@ -386,11 +386,11 @@ Performs feature selection using a Binary Particle Swarm Optimization (PSO) algo
 - C2 (float, optional, default=1.5): Social coefficient influencing how much a particle follows the global best position.
 - reps (int, optional, default=4): The number of times each feature set is evaluated to account for variability.
 - frequent_reporting (bool, optional, default=False): If True, logs intermediate results more frequently.
-- adaptive_metrics (bool, optional, default=False): If True, dynamically adjusts evaluation criteria based on observed performance trends.
+- adaptive_metrics (bool, optional, default=False): If True, dynamically adjusts the C1 and C2 values based on observed performance trends. It will decrease C1 and increase C2 when the average population performance is increasing allowing exploitation to take over when a strong solution is found.
 
 **Returns**
 
-- best_solution (list): The best performing subset of genes selected.
+- best_solution (list): The best-performing subset of genes selected.
 - best_fitness (float): The highest achieved evaluation metric (e.g., AUC).
 
 **Example Usage**
@@ -401,8 +401,9 @@ best_solution, best_fitness = pso.binary_pso(current_genes, current_data, 100, 2
 ### :bar_chart: Plotting Functions
 
 Several functions are available with the package:
-evaluate_model(input_model, input_data)
-Plots model training and evaluation metrics over epochs:
+
+`evaluate_model(input_model, input_data)`
+- Plots model training and evaluation metrics across epochs:
 
 Training and test accuracy with chance level baselines.
 
@@ -426,6 +427,7 @@ import PAGEpy_plot
 
 pso_df = pd.read_pickle("pso_df.pkl")
 pso_dict = pd.read_pickle("pso_dict.pkl")
+
 PAGEpy_plot.plot_pso_row_averages(pso_df)
 
 PAGEpy_plot.plot_hamming_distance(pso_dict)
@@ -462,8 +464,6 @@ MultipleFolds(
 **Methods (Automatically Called)**
 
 - `get_folds()`: Splits the dataset into stratified K-folds and stores the resulting train-test splits.
-
-from mymodule import MultipleFolds, FormatData
 
 **Example Usage**
 ```python
