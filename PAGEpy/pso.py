@@ -18,9 +18,9 @@ tf.get_logger().setLevel('ERROR')  # 'WARN' or 'ERROR' will suppress info logs
 warnings.filterwarnings('ignore', category=UserWarning, message='.*CUDA.*')
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
 
-from format_data_class import FormatData
-from multiple_folds_class  import MultipleFolds
-from individual_fold_class import IndividualFold
+from PAGEpy.format_data_class import FormatData
+from PAGEpy.multiple_folds_class import MultipleFolds
+from PAGEpy.individual_fold_class import IndividualFold
 import numpy as np
 import random
 import pandas as pd
