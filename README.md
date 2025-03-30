@@ -92,7 +92,7 @@ with open(genes_path, 'rb') as f:
 Now, you can pass the genes list and `FormatData` object to the `PredAnnModel` class.
 
 ```Python
-current_model = PredAnnModel(current_data,current_genes,num_epochs=50)
+current_model = PredAnnModel(current_data,current_genes,num_epochs=500,auc_threshold=1)
 ```
 
 The model offers many customization options, but only the input data, feature list, and number of epochs are required arguments. For a complete list of optional input arguments, refer to the class docstring (e.g., `help(PredAnnModel)`) or read the descriptions shown below in this `README`. Many of these options are related to regularization techniques.
@@ -107,8 +107,9 @@ Several features make this model effective:
 Once the class is instantiated, the model will provide updates on training progress every 10 epochs. For example, here is the output after epoch 40:
 
 ```console
-Epoch 40, Avg Outcome Loss: 0.3833, Train AUC: 0.9137, Train Accuracy: 0.8339, Test AUC: 0.8909, Test Accuracy: 0.8234
+Epoch 40, Avg Outcome Loss: 0.2897, Train AUC: 0.9569, Train Accuracy: 0.8883, Test AUC: 0.9188, Test Accuracy: 0.8528
 ```
+
 ### Evaluating the Model
 After training the model, you can view its progress and metrics by running:
 
@@ -121,8 +122,8 @@ This will output:
 ```console
 max train accuracy: 1.0
 max train auc: 1.0
-max test accuracy: 0.9
-max test auc: 0.96
+max test accuracy: 0.87
+max test auc: 0.93
 ```
 ![example_training_course.png](https://raw.githubusercontent.com/sean-otoole/PAGEpy/refs/heads/main/example_images/example_training_course.png)
 
