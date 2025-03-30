@@ -28,17 +28,8 @@ The codebase also includes various plotting scripts for evaluating the model's p
 - [Contact](#Contact)
 
 ## Installation
-1. Clone the repository:
    ```bash
-   git clone https://github.com/sean-otoole/PAGEpy.git
-   ```
-2. Navigate to the project directory:
-   ```bash
-   cd your_path/PAGEpy
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
+   pip install PAGEpy
    ```
 
 ## Usage
@@ -202,7 +193,7 @@ ann_plot.evaluate_model(new_model, current_data)
 ## Project Organization
 
 ```
-📂 src/                            # Source code for the PAGEpy project
+📂 PAGEpy/                         # Source code for the PAGEpy project
 ├── 📄 PAGEpy_plot.py              # Contains various functions for plotting the data and tracking progress
 ├── 📄 format_data_class.py        # The FormatData class takes expression data and a target variable to instantiate an object suitable for PSO and training a deep neural network
 ├── 📄 multiple_folds_class.py     # The MultipleFolds class uses the FormatData class as input to generate multiple folds (default = 5) for cross-validation
