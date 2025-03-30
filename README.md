@@ -128,7 +128,7 @@ max train auc: 1.0
 max test accuracy: 0.9
 max test auc: 0.96
 ```
-![example_training_course.png](example_images/example_training_course.png)
+![example_training_course.png](https://raw.githubusercontent.com/sean-otoole/PAGEpy/refs/heads/main/example_images/example_training_course.png)
 
 In this case, the model is predicting whether a cell is infected with HIV, using only the endogenous transcriptome.
 
