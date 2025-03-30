@@ -35,13 +35,13 @@ The codebase also includes various plotting scripts for evaluating the model's p
 ## Usage
 To get started, first open your script or notebook and import the necessary packages:
 ```python
-import PAGEpy_plot
-import pso
-from format_data_class import FormatData
-from pred_ann_model import PredAnnModel
+from PAGEpy import PAGEpy_plot
+from PAGEpy import pso
+from PAGEpy.format_data_class import FormatData
+from PAGEpy.pred_ann_model import PredAnnModel
 import pickle
 import pandas as pd
-import PAGEpy_utils
+from PAGEpy import PAGEpy_utils
 
 PAGEpy_utils.init_cuda()
 ```
