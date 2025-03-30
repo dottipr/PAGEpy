@@ -426,7 +426,7 @@ PAGEpy_plot.plot_hamming_distance(pso_dict)
 PAGEpy_plot.plot_sorted_frequencies(pso_dict,pso_df)
 ```
 
-:red_circle: MultipleFolds class
+### :red_circle: MultipleFolds class
 
 A class for splitting the input data into multiple stratified K-folds. It can be passed to the `IndividualFold` to access individual K-folds.
 
@@ -465,7 +465,7 @@ data_prep = FormatData(data_dir='/path/to/data')
 folds = MultipleFolds(input_data=data_prep, folds_count=5)
 ```
 
-:red_circle: IndividualFold class
+### :red_circle: IndividualFold class
  
 A class to prepare the data for training and testing an Artificial Neural Network using the stratified K-folds from an existing `MultipleFolds` object.
 
