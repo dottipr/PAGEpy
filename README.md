@@ -1,5 +1,10 @@
-# PAGEpy - Predictive Analysis of Gene Expression with Python
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sean-otoole/PAGEpy/refs/heads/main/example_images/PAGEpy_logo.png" width="700">
+</p>
 
+---
+
+# PAGEpy - Predictive Analysis of Gene Expression with Python
 ## Overview
 PAGEpy (Predictive Analysis of Gene Expression in Python) is a Python package designed to easily test if a multi-layered neural network could produce a reasonable estimate of a target variable given a gene expression data set. This package is compatible with both single-cell and bulk RNA sequencing datasets. It requires four input files placed in a single directory:
 
