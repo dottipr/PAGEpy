@@ -241,7 +241,7 @@ FormatData(
 - `hvg_count` (int, default=1000): Number of highly variable genes (HVGs) to select.
 - `pval_cutoff` (float, default=0.01): Significance threshold for gene selection when using differential expression analysis.
 - `gene_selection` (str, default='HVG'): The method of feature selection, can be either: 'HVG' (Highly Variable Genes) or  'Diff' (Differential Expression)
-- `pval_correction` (str, default='bonferroni'): Method used for multiple hypothesis testing correction. `'benjamini-hochberg'` is another option.
+- `pval_correction` (str, default='bonferroni'): Method used for multiple hypothesis testing corrections. `'benjamini-hochberg'` is another option.
 
 **Attributes**
   
@@ -284,6 +284,8 @@ print(data_prep.selected_genes)
 
 ### 🔴 `PredAnnModel` class
 
+A class for instantiating and training a multi-layer classifier model.
+
 **Initialization**
 ```python
 PredAnnModel(
@@ -316,7 +318,7 @@ PredAnnModel(
 )
 ```
 
-**Paramters**
+**Parameters**
 
 - `input_data` (FormatData object): Processed dataset used for training, containing gene expression values and labels.
 - `current_genes` (list): A non-empty list of genes used as model features.
@@ -431,7 +433,7 @@ PAGEpy_plot.plot_hamming_distance(pso_dict)
 PAGEpy_plot.plot_sorted_frequencies(pso_dict,pso_df)
 ```
 
-### 🔴 MultipleFolds class
+### 🔴 `MultipleFolds` class
 
 A class for splitting the input data into multiple stratified K-folds. It can be passed to the `IndividualFold` to access individual K-folds.
 
@@ -470,7 +472,7 @@ data_prep = FormatData(data_dir='/path/to/data')
 folds = MultipleFolds(input_data=data_prep, folds_count=5)
 ```
 
-### 🔴 IndividualFold class
+### 🔴 `IndividualFold` class
  
 A class to prepare the data for training and testing an Artificial Neural Network using the stratified K-folds from an existing `MultipleFolds` object.
 
@@ -510,4 +512,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For any questions or suggestions, reach out to:
 - **Sean O'Toole** - [sean.otoole.bio@gmail.com](mailto:your-email@example.com)
 - GitHub: [sean-otoole](https://github.com/your-username)
+
+---
 
