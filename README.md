@@ -178,13 +178,13 @@ PAGEpy_plot.plot_pso_row_averages(pso_df)
 PAGEpy_plot.plot_hamming_distance(pso_dict)
 PAGEpy_plot.plot_sorted_frequencies(pso_dict, pso_df)
 ```
-![example_feature_set_performance_across_pso_generations.png](example_images/example_feature_set_performance_across_pso_generations.png)
+![example_feature_set_performance_across_pso_generations.png](https://raw.githubusercontent.com/sean-otoole/PAGEpy/refs/heads/main/example_images/example_feature_set_performance_across_pso_generations.png)
 - plot_pso_row_averages will show how the population is improving over time.
 
-![example_hamming_distance_plot.png](example_images/example_hamming_distance_plot.png)
+![example_hamming_distance_plot.png](https://raw.githubusercontent.com/sean-otoole/PAGEpy/refs/heads/main/example_images/example_hamming_distance_plot.png)
 - plot_hamming_distance will track the average Hamming distance between population members, demonstrating the degree of similarity.
 
-![example_features_frequencies_plot.png](example_images/example_features_frequencies_plot.png)
+![example_features_frequencies_plot.png](https://raw.githubusercontent.com/sean-otoole/PAGEpy/refs/heads/main/example_images/example_features_frequencies_plot.png)
 - plot_sorted_frequencies will show the proportional representation of features in the first and latest generations.
 
 The output of the PSO will return the best-performing feature set as well as its associated score. Additionally, the best-performing feature set will be written within the local directory as such: `pso_genes_result.pkl`.
