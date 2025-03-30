@@ -390,8 +390,7 @@ Plots the mean, max, min, and standard deviation of AUC values per generation.
 Computes and plots the average Hamming distance among feature sets in each generation.
 
 `plot_sorted_frequencies(loaded_dict, loaded_df)`
-- Compares feature selection frequencies between the first and latest generation:
-Sorts and normalizes the frequency of selected features (1s) and plots the changes over time.
+- Compares feature selection frequencies between the first and latest generation: by sorting and normalizing the frequency of selected features between these two generations.
 
 **Example Usage**
 ```python
@@ -405,6 +404,80 @@ PAGEpy_plot.plot_pso_row_averages(pso_df)
 PAGEpy_plot.plot_hamming_distance(pso_dict)
 
 PAGEpy_plot.plot_sorted_frequencies(pso_dict,pso_df)
+```
+
+:red_circle: MultipleFolds class
+
+A class for splitting the input data into multiple stratified K-folds. It can be passed to the `IndividualFold` to access individual K-folds.
+
+**Initialization**
+```python
+MultipleFolds(
+    input_data,
+    folds_count=5
+)
+```
+
+**Parameters**
+- `input_data` (object): An object containing `x_train` and `y_train` as pandas DataFrames.
+- `folds_count` (int, default=5): Number of folds for stratified K-fold cross-validation.
+
+**Attributes**
+
+- `x_train_folds` (list): List of training feature sets for each fold.
+- `x_test_folds` (list): List of testing feature sets for each fold.
+- `y_train_folds` (list): List of training target sets for each fold.
+- `y_test_folds` (list): List of testing target sets for each fold.
+- `X` (DataFrame): Feature matrix extracted from input_data.x_train.
+- `y` (DataFrame): Target variable extracted from input_data.y_train.
+- `genes_list` (list): List of all genes, extracted from input_data.genes_list.
+
+**Methods (Automatically Called)**
+
+- `get_folds()`: Splits the dataset into stratified K-folds and stores the resulting train-test splits.
+
+from mymodule import MultipleFolds, FormatData
+
+**Example Usage**
+```python
+# Load and prepare input data
+data_prep = FormatData(data_dir='/path/to/data')
+
+# Generate stratified folds
+folds = MultipleFolds(input_data=data_prep, folds_count=5)
+```
+
+:red_circle: IndividualFold class
+ 
+A class to prepare the data for training and testing an Artificial Neural Network using the stratified K-folds from an existing `MultipleFolds` object.
+
+**Parameters**
+
+- **folds_object** (object): An instance of a folds-generating class (e.g., `MultipleFolds`) containing stratified train-test splits.
+- **current_fold** (int, default=0): The index of the fold to use for training and testing.
+
+**Attributes**
+
+- `folds_object` (object): The input folds object storing train-test splits.
+- `current_fold` (int): The index of the selected fold for training and testing.
+- `genes_list` (list): List of genes used for feature selection.
+- `x_train` (DataFrame or ndarray): Gene expression data for the training set.
+- `x_test` (DataFrame or ndarray): Gene expression data for the testing set.
+- `y_train` (DataFrame or Series): Target variable for the training set.
+- `y_test` (DataFrame or Series): Target variable for the testing set.
+
+**Methods (Automatically Called)**
+
+`__repr__()`: Returns a string representation of the `IndividualFold` object, including the current fold index and the shape of `unique_combinations_array`.
+
+**Example Usage**
+
+```python
+# Generate stratified folds
+folds = MultipleFolds(input_data=data_prep, folds_count=5)
+
+# Select an individual fold for ANN training
+fold_instance = IndividualFold(folds_object=folds, current_fold=2)
 ```
 
 ## License
