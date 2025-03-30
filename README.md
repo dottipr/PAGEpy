@@ -211,7 +211,7 @@ ann_plot.evaluate_model(new_model, current_data)
 
 ## Function and class descriptions
 
-### :red_circle: `FormatData` class
+### 🔴 `FormatData` class
 
 A class for preparing and formatting gene expression data for machine learning pipelines.
 
@@ -277,7 +277,7 @@ data_prep = FormatData(
 print(data_prep.selected_genes)
 ```
 
-### :red_circle: `PredAnnModel` class
+### 🔴 `PredAnnModel` class
 
 **Initialization**
 ```python
@@ -360,7 +360,7 @@ model = PredAnnModel(input_data=data_prep, current_genes=selected_genes)
 print(model.test_auc_list)
 ```
 
-### :red_circle: `binary_pso` function
+### 🔴 `binary_pso` function
 
 Performs feature selection using a Binary Particle Swarm Optimization (PSO) algorithm to optimize a classification model based on gene expression data.
 
@@ -389,7 +389,7 @@ Performs feature selection using a Binary Particle Swarm Optimization (PSO) algo
 best_solution, best_fitness = pso.binary_pso(current_genes, current_data, 100, 20)
 ```
 
-### :bar_chart: Plotting Functions
+### 📊 Plotting Functions
 
 Several functions are available with the package:
 
@@ -426,7 +426,7 @@ PAGEpy_plot.plot_hamming_distance(pso_dict)
 PAGEpy_plot.plot_sorted_frequencies(pso_dict,pso_df)
 ```
 
-### :red_circle: MultipleFolds class
+### 🔴 MultipleFolds class
 
 A class for splitting the input data into multiple stratified K-folds. It can be passed to the `IndividualFold` to access individual K-folds.
 
@@ -465,7 +465,7 @@ data_prep = FormatData(data_dir='/path/to/data')
 folds = MultipleFolds(input_data=data_prep, folds_count=5)
 ```
 
-### :red_circle: IndividualFold class
+### 🔴 IndividualFold class
  
 A class to prepare the data for training and testing an Artificial Neural Network using the stratified K-folds from an existing `MultipleFolds` object.
 
