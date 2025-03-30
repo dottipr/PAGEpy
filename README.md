@@ -3,14 +3,16 @@
 ## Overview
 PAGEpy (Predictive Analysis of Gene Expression in Python) is a Python package designed to easily test if a multi-layered neural network could produce a reasonable estimate of a target variable given a gene expression data set. This package is compatible with both single-cell and bulk RNA sequencing datasets. It requires four input files placed in a single directory:
 
-1. A counts matrix, where genes are rows and cells or samples are columns.
-2. A text file containing the list of all gene names.
-3. A text file containing the list of all sample/barcode names.
-4. A CSV file with the target variable of interest.
+1. A counts matrix, where genes are rows and cells or samples are columns (.mtx).
+2. A text file containing the list of all gene names (.txt).
+3. A text file containing the list of all sample/barcode names (.txt.).
+4. A CSV file with the target variable of interest (.csv).
 
 This repository provides code to format these datasets, split them into training and test groups, and select highly variable genes (HVGs) to be used as features for a neural network. The network is trained using a custom protocol aimed at minimizing overfitting and training set memorization.
 
-Several customization options are available for different aspects of the process. Additionally, the repository includes a Particle Swarm Optimization (PSO) pipeline to improve the feature set. The PSO pipeline generates many randomized subsets of the initial set of HVGs and iteratively optimizes the population using PSO. Population members are evaluated with simplified neural network architectures over a small number of epochs. A variety of tuning parameters are provided for customization.
+Several customization options are available for different aspects of the process. The repository also includes a Particle Swarm Optimization (PSO) pipeline designed to refine the feature set. This pipeline generates multiple randomized subsets of the initial set of HVGs and iteratively optimizes them using PSO.
+
+To evaluate each feature set, neural networks are trained for a small number of epochs, with performance assessed through repeated trials and averaging to ensure reliable estimates. Additionally, each feature set is tested across multiple K-folds within the training dataset. A variety of parameters are available for tuning and customization at every stage of this process.
 
 The end result of the PSO pipeline is a set of features, based solely on the training dataset, that could potentially improve the model’s generalizability.
 
@@ -97,14 +99,14 @@ Now, you can pass the genes list and `FormatData` object to the `PredAnnModel` c
 current_model = PredAnnModel(current_data,current_genes,num_epochs=50)
 ```
 
-The model offers many customization options, but only the input data, feature list, and number of epochs are required arguments. For a complete list of optional input arguments, refer to the class docstring (e.g., `help(PredAnnModel)`). Many of these options are related to regularization techniques.
+The model offers many customization options, but only the input data, feature list, and number of epochs are required arguments. For a complete list of optional input arguments, refer to the class docstring (e.g., `help(PredAnnModel)`) or read the descriptions shown below in this `README`. Many of these options are related to regularization techniques.
 
 Several features make this model effective:
 
-1. The learning rate adjusts dynamically based on performance metrics during training.
-2. A percentage of the training data is hidden during each epoch to reduce overfitting and prevent memorization.
+1. The learning rate can be adjusted dynamically based on performance metrics during training.
+2. A percentage of the training data is hidden during each epoch to reduce overfitting and prevent training data set memorization.
 3. Target variable balancing is applied during the mini-batch training process.
-4. The input layer automatically scales based on the number of features passed to the model.
+4. The input layer of the classifier automatically scales based on the number of features passed to the model.
 
 Once the class is instantiated, the model will provide updates on training progress every 10 epochs. For example, here is the output after epoch 40:
 
@@ -121,10 +123,10 @@ PAGEpy_plot.evaluate_model(current_model, current_data)
 This will output:
 
 ```console
-max train accuracy: 0.86
-max train auc: 0.93
-max test accuracy: 0.84
-max test auc: 0.91
+max train accuracy: 1.0
+max train auc: 1.0
+max test accuracy: 0.9
+max test auc: 0.96
 ```
 ![example_training_course.png](example_images/example_training_course.png)
 
@@ -136,10 +138,35 @@ If you're not entirely satisfied with the model's performance, you can adjust va
 
 You can execute the PSO algorithm as follows:
 ```python
-best_solution, best_fitness = pso.binary_pso(current_genes, current_data, 200, 20)
+best_solution, best_fitness = pso.binary_pso(current_genes, current_data, 200, 15,  C1 = 2, C2 = 1.5)
 ```
 
-The `binary_pso` function takes the current genes and splits the data into training and test sets. It randomly selects features for a specified number of population members (in this case, n=200). It then trains 200 models, each using one of the selected feature sets. The model architecture is similar to `PredAnnModel`, but with a simpler training regimen and fewer regularization elements. The models are trained for only 10 epochs. After training, the performance of each population member is used to decide whether features should be mutated. The parameters `C1` and `C2` control how individual and group performance influence these changes, while the momentum term `W` determines the likelihood of a feature change. After each generation (in this case, 20), the population members are updated. If the algorithm works well, there should be an improvement in the average and maximum test AUC values.
+The `binary_pso` function takes the current genes and splits the data into training and test sets. It randomly selects features for a specified number of population members (in this case, n=200). It then trains models for each feature set or population member. The model architecture used for evaluating each population member is similar to `PredAnnModel`, but with a simpler training regimen and fewer regularization elements. The models are trained for 50 epochs. 
+
+The PSO function works as follows:
+
+After initializing a random set of population members (particles), each particle is assigned a random velocity. The fitness of each of particle is then evaluated by training across 5 K-folds (derived from the training data) and the final Test AUC is averaged across folds, this evaluation is calculated multiple times (user-specified) for each particle due to the semi-stochastic nature of the model training. Then velocity of each particle are updated as such:
+
+$$
+v_i^{(t+1)} = w v_i^{(t)} + c_1 r_1 (pbest_i - x_i^{(t)}) + c_2 r_2 (gbest - x_i^{(t)})
+$$
+
+where:
+
+- `w` is the inertia weight (controls how much the previous velocity is retained).
+- `c1` and `c2` are the acceleration coefficients (control the infludence of `pbest` and `gbest`). Higher `c1` values will lead to greater exploration whereas higher `c2` values will lead to more exploitation and earlier convergence.
+- `r1` and `r2` are random number values between 0 and 1.
+- $x_i^{(t)}$ is the current position of particle 𝑖.
+
+The position of each particle is then updated using:
+
+$$
+x_i^{(t+1)} = x_i^{(t)} + v_i^{(t+1)}
+$$
+
+This produces a new particle vector which is then passed through a sigmoid function and allows each particle to be updated in response to past personal and group performance. In each iteration, each particle will update its personal best or `pbest` if the new position is better. The global `gbest` is updated if any particle achieves a better solution thant the current `gbest`.
+
+These steps are then repeated for a number of user-specified iterations. If the algorithm works well, there should be an improvement in the average and maximum test AUC values.
 
 Since this algorithm can take a long time to run, it’s helpful to monitor its progress. The `binary_pso` function will produce two local files that you can load and use to track progress:
 
@@ -160,9 +187,9 @@ PAGEpy_plot.plot_sorted_frequencies(pso_dict, pso_df)
 ![example_features_frequencies_plot.png](example_images/example_features_frequencies_plot.png)
 - plot_sorted_frequencies will show the proportional representation of features in the first and latest generations.
 
-The output of the PSO will return the best performing feature set as well as its assocaited score. Additionally, the best performing feature set will be written within the local directory as such: `pso_genes_result.pkl`.
+The output of the PSO will return the best-performing feature set as well as its associated score. Additionally, the best-performing feature set will be written within the local directory as such: `pso_genes_result.pkl`.
 
-Subsequently, you can use the optimized feature set to then retrain the model and potentially produce an improved score with regards to the Test set AUC value as such:
+Subsequently, you can use the optimized feature set to then train a new model and potentially produce an improved score with regards to the Test set AUC value as such:
 
 ```python
 with open('pso_genes_result.pkl', 'wb') as f:
