@@ -373,24 +373,24 @@ print(model.test_auc_list)
 Performs feature selection using a Binary Particle Swarm Optimization (PSO) algorithm to optimize a classification model based on gene expression data.
 
 **Positional arguments**
-- current_genes (list): A list of gene names considered for feature selection.
-- current_data (pd.DataFrame): A DataFrame containing gene expression values with samples as rows and genes as columns.
-- POP_SIZE (int): The number of particles (candidate solutions) in the swarm.
-- N_GENERATIONS (int): The number of iterations for the PSO algorithm.
+- `current_genes` (list): A list of gene names considered for feature selection.
+- `current_data` (pd.DataFrame): A DataFrame containing gene expression values with samples as rows and genes as columns.
+- `POP_SIZE` (int): The number of particles (candidate solutions) in the swarm.
+- `N_GENERATIONS` (int): The number of iterations for the PSO algorithm.
 
 **Keyword arguments**
   
-- W (float, optional, default=1): Inertia weight controlling the influence of previous velocity on the new velocity.
-- C1 (float, optional, default=2): Cognitive coefficient influencing how much a particle follows its personal best position.
-- C2 (float, optional, default=1.5): Social coefficient influencing how much a particle follows the global best position.
-- reps (int, optional, default=4): The number of times each feature set is evaluated to account for variability.
-- frequent_reporting (bool, optional, default=False): If True, logs intermediate results more frequently.
-- adaptive_metrics (bool, optional, default=False): If True, dynamically adjusts the C1 and C2 values based on observed performance trends. It will decrease C1 and increase C2 when the average population performance is increasing allowing exploitation to take over when a strong solution is found.
+- `W` (float, optional, default=1): Inertia weight controlling the influence of previous velocity on the new velocity.
+- `C1` (float, optional, default=2): Cognitive coefficient influencing how much a particle follows its personal best position.
+- `C2` (float, optional, default=1.5): Social coefficient influencing how much a particle follows the global best position.
+- `reps` (int, optional, default=4): The number of times each feature set is evaluated to account for variability.
+- `frequent_reporting` (bool, optional, default=False): If True, logs intermediate results more frequently.
+- `adaptive_metrics` (bool, optional, default=False): If True, dynamically adjusts the `C1` and `C2` values based on observed performance trends. It will decrease `C1` and increase `C2` when the average population performance is increasing allowing exploitation to take over when a strong solution is found.
 
 **Returns**
 
-- best_solution (list): The best-performing subset of genes selected.
-- best_fitness (float): The highest achieved evaluation metric (e.g., AUC).
+- `best_solution` (list): The best-performing subset of genes selected.
+- `best_fitness` (float): The highest achieved evaluation metric (e.g., AUC).
 
 **Example Usage**
 ```python
