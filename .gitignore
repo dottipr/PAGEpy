@@ -7,5 +7,4 @@ dist/pagepy-1.0.5.tar.gz
 dist/
 build/
 *.egg-info/
-example_images/
 build/lib/PAGEpy
