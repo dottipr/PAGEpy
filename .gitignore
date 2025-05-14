@@ -4,3 +4,8 @@ dist/pagepy-1.0.6-py3-none-any.whl
 dist/pagepy-1.0.6.tar.gz
 dist/pagepy-1.0.5-py3-none-any.whl
 dist/pagepy-1.0.5.tar.gz
+dist/
+build/
+*.egg-info/
+example_images/
+build/lib/PAGEpy
