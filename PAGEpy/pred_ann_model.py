@@ -35,7 +35,7 @@ def train_step(model, data, outcome_labels):
 
 def adjust_learning_rate_by_auc(epoch, model, x_test, y_test_outcome, lr_dict, auc_thresholds, test_auc):
     # Get model's current learning rate
-    current_lr = tf.keras.backend.get_value(model.optimizer.lr)
+    current_lr = tf.keras.backend.get_value(model.optimizer.inner_optimizer.learning_rate) #tf.keras.backend.get_value(model.optimizer.lr)
 
     # Adjust learning rate based on AUC thresholds
     new_lr = current_lr
