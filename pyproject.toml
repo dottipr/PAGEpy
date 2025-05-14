@@ -20,7 +20,7 @@ license-files = ["LICENSE"]
 
 dependencies = [
     "numpy==1.26.4",         
-    "pandas>==2.2.3",     
+    "pandas==2.2.3",     
     "scikit-learn>=1.0,<1.5", 
     "tensorflow==2.18.0",   
     "scanpy>=1.9.1,<1.10",  
