@@ -37,6 +37,7 @@ def adjust_learning_rate_by_auc(epoch, model, x_test, y_test_outcome, lr_dict, a
     # Get model's current learning rate
     #current_lr = tf.keras.backend.get_value(model.optimizer.inner_optimizer.learning_rate) #tf.keras.backend.get_value(model.optimizer.lr)
     current_lr = tf.keras.backend.get_value(model.optimizer.learning_rate)
+    
 
 
     # Adjust learning rate based on AUC thresholds
@@ -50,9 +51,9 @@ def adjust_learning_rate_by_auc(epoch, model, x_test, y_test_outcome, lr_dict, a
         #tf.keras.backend.set_value(model.optimizer.lr, new_lr)
         # tf.keras.backend.set_value(model.optimizer.inner_optimizer.learning_rate, new_lr)
         #print(f"Epoch {epoch + 1}: Adjusting learning rate to {new_lr:.6f}")
-        tf.keras.backend.set_value(model.optimizer.learning_rate, new_lr)
+        #tf.keras.backend.set_value(model.optimizer.learning_rate, new_lr)
+        model.optimizer.learning_rate = new_lr 
 
-    
     return test_auc
 
 class PredAnnModel:
@@ -74,24 +75,24 @@ class PredAnnModel:
         multiplier=3,
         auc_thresholds = [0.6, 0.7, 0.8, 0.85, 0.88,0.89,0.90,0.91,0.92],
         lr_dict = {
-                    0.6:  0.005,
-                    0.7:  0.001,
-                    0.8:  0.0005,
-                    0.85: 0.0005,
-                    0.88: 0.0005,
-                    0.89: 0.0005,
-                    0.9:  0.0005,
-                    0.91: 0.0005,
-                    0.92: 0.0005
                     # 0.6:  0.005,
                     # 0.7:  0.001,
                     # 0.8:  0.0005,
-                    # 0.85: 0.0001,
-                    # 0.88: 0.00005,
-                    # 0.89: 0.00001,
-                    # 0.9:  0.000005,
-                    # 0.91: 0.000001,
-                    # 0.92: 0.0000005
+                    # 0.85: 0.0005,
+                    # 0.88: 0.0005,
+                    # 0.89: 0.0005,
+                    # 0.9:  0.0005,
+                    # 0.91: 0.0005,
+                    # 0.92: 0.0005
+                    0.6:  0.005,
+                    0.7:  0.001,
+                    0.8:  0.0005,
+                    0.85: 0.0001,
+                    0.88: 0.00005,
+                    0.89: 0.00001,
+                    0.9:  0.000005,
+                    0.91: 0.000001,
+                    0.92: 0.0000005
 }
     ):
         """
