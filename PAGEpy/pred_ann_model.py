@@ -45,7 +45,8 @@ def adjust_learning_rate_by_auc(epoch, model, x_test, y_test_outcome, lr_dict, a
     
     # Set new learning rate
     if new_lr != current_lr:
-        tf.keras.backend.set_value(model.optimizer.lr, new_lr)
+        #tf.keras.backend.set_value(model.optimizer.lr, new_lr)
+        tf.keras.backend.set_value(model.optimizer.inner_optimizer.lr, new_lr)
         #print(f"Epoch {epoch + 1}: Adjusting learning rate to {new_lr:.6f}")
     
     return test_auc
