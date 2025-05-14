@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "PAGEpy"
-version = "1.0.12"
+version = "1.0.13"
 authors = [
   { name="Sean O'Toole", email="sean.otoole.bio@gmail.com" },
 ]
