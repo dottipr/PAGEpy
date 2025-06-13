@@ -449,7 +449,7 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W=1, C1=2, 
         POP_SIZE, FEATURE_COUNT)  # Random velocities
 
     dna_dict[0] = population
-    pickle.dump(dna_dict, open("pso_dict.pkl", "wb"))
+    pickle.dump(dna_dict, open("pso_particle_history.pkl", "wb"))
 
     # Personal bests (initially the particles themselves)
     p_best = np.copy(population)
@@ -470,7 +470,7 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W=1, C1=2, 
 
     # save pso results df
     pso_df.loc[len(pso_df)] = p_best_scores
-    pso_df.to_pickle("pso_df.pkl")
+    pso_df.to_pickle("pso_fitness_scores.pkl")
 
     # Global best (best solution found by any particle)
     g_best = p_best[np.argmax(p_best_scores)]  # We want the maximum AUC
@@ -542,10 +542,10 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W=1, C1=2, 
         fitness_history.append(avg_fitness)
 
         pso_df.loc[len(pso_df)] = fitness_scores
-        pso_df.to_pickle("pso_df.pkl")
+        pso_df.to_pickle("pso_fitness_scores.pkl")
 
         dna_dict[gen+1] = population
-        pickle.dump(dna_dict, open("pso_dict.pkl", "wb"))
+        pickle.dump(dna_dict, open("pso_particle_history.pkl", "wb"))
 
         # Update the average score for the next iteration
         prev_best_score = avg_fitness
@@ -559,7 +559,7 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W=1, C1=2, 
 
     # save the best result for easy accesibley late
     pso_genes = [item for item, m in zip(current_genes, g_best) if m == 1]
-    with open('pso_genes_result.pkl', 'wb') as f:
+    with open('pso_selected_genes.pkl', 'wb') as f:
         pickle.dump(pso_genes, f)
 
     return g_best, g_best_score

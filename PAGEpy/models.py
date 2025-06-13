@@ -122,7 +122,7 @@ class SimpleNN:
 
     def __init__(
         self,
-        n_genes,
+        n_input_features,
         learning_rate=0.001,
         dropout_rate=0,
         l2_reg=0.2,
@@ -159,7 +159,7 @@ class SimpleNN:
         self.clipnorm = clipnorm
         self.simplify_categories = simplify_categories
         self.multiplier = multiplier
-        self.n_genes = n_genes
+        self.n_genes = n_input_features
 
         # Initialise model attributes
         self.model = None
@@ -252,7 +252,7 @@ class SimpleNN:
 
     def train(
         self, x_train, y_train,
-        num_epochs: int = 100, batch_size: int = 32, seed=42
+        n_epochs: int = 100, batch_size: int = 32, seed=42
     ):
         """
         Train the neural network model with optimized batch handling.
@@ -270,18 +270,18 @@ class SimpleNN:
 
         # Calculate training parameters
         # TO DO: Why math.floor??
-        num_samples = math.floor(x_train.shape[0])
-        num_steps_per_epoch = num_samples // batch_size
+        n_samples = math.floor(x_train.shape[0])
+        n_steps_per_epoch = n_samples // batch_size
 
         # Main training loop
-        for epoch in range(num_epochs):
+        for epoch in range(n_epochs):
             total_loss, total_accuracy = 0.0, 0.0
             # Initialize gradient accumulation
             accumulated_grads = [tf.zeros_like(
                 var) for var in self.model.trainable_variables]
 
             # Process all batches in this epoch
-            for _ in range(num_steps_per_epoch):
+            for _ in range(n_steps_per_epoch):
                 batch_indices = []
 
                 if self.balance:
@@ -328,7 +328,7 @@ class SimpleNN:
 
             # Apply accumulated gradients (once per epoch)
             averaged_grads = [
-                grad / num_steps_per_epoch for grad in accumulated_grads
+                grad / n_steps_per_epoch for grad in accumulated_grads
             ]
             self.optimizer.apply_gradients(
                 zip(averaged_grads, self.model.trainable_variables))
@@ -356,6 +356,7 @@ def adjust_learning_rate_by_auc(epoch, model, x_test, y_test_outcome, lr_dict, a
     return test_auc
 
 
+# TODO: devo ancora fare il refactoring di questa classe!!
 class PredAnnModel:
     def __init__(
         self,
@@ -366,7 +367,7 @@ class PredAnnModel:
         balance=True,
         l2_reg=0.2,
         batch_size=64,
-        num_epochs=5000,
+        n_epochs=5000,
         report_frequency=1,
         auc_threshold=0.95,
         clipnorm=2.0,
@@ -406,7 +407,7 @@ class PredAnnModel:
         - balance (bool): Whether to balance technology and outcome variables during training (default: True).
         - l2_reg (float): Strength of L2 regularization (default: -0.2).
         - batch_size (int): Batch size for training (default: 16).
-        - num_epochs (int): Total number of training epochs (default: 5000).
+        - n_epochs (int): Total number of training epochs (default: 5000).
         - report_frequency (int): Frequency of reporting model metrics (AUC and Accuracy) during training (default: 1).
         - auc_threshold (float): AUC threshold for early stopping (default: 0.9).
         - clipnorm (float): Gradient clipping norm to prevent exploding gradients (default: 2.0).
@@ -432,7 +433,7 @@ class PredAnnModel:
         self.balance = balance
         self.l2_reg = l2_reg  # Degree of L2 regularization.
         self.batch_size = batch_size  # Batch size for training.
-        self.num_epochs = num_epochs  # Total number of training epochs.
+        self.n_epochs = n_epochs  # Total number of training epochs.
         # Frequency for collecting metrics during training.
         self.report_frequency = report_frequency
         self.auc_threshold = auc_threshold  # AUC threshold for early stopping.
@@ -531,15 +532,15 @@ class PredAnnModel:
             learning_rate=self.learning_rate, clipnorm=self.clipnorm)
         # determine the sample and batch size
         # number of samples used in each training epoch
-        num_samples = math.floor(self.x_train.shape[0] * (1-self.holdout_size))
+        n_samples = math.floor(self.x_train.shape[0] * (1-self.holdout_size))
         # Calculate the number of steps per epoch
-        num_steps_per_epoch = num_samples // self.batch_size
+        n_steps_per_epoch = n_samples // self.batch_size
         # Compile the outcome discriminator
         self.outcome_classifier.compile(
             optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 
         # Training loop
-        for epoch in range(self.num_epochs):
+        for epoch in range(self.n_epochs):
             total_loss = 0.0  # To accumulate losses
             total_accuracy = 0.0  # To accumulate accuracy
             # Initialize gradient accumulator
@@ -551,7 +552,7 @@ class PredAnnModel:
                 self.x_train, self.input_data.y_train, test_size=self.holdout_size, random_state=None)
 
             # Mini-batch training loop
-            for step in range(num_steps_per_epoch):
+            for step in range(n_steps_per_epoch):
                 # Balance batches if necessary
                 batch_indices = []
 
@@ -602,15 +603,15 @@ class PredAnnModel:
 
             # Average the accumulated gradients
             averaged_grads = [
-                grad / num_steps_per_epoch for grad in accumulated_grads]
+                grad / n_steps_per_epoch for grad in accumulated_grads]
 
             # Apply averaged gradients to update model weights
             optimizer.apply_gradients(
                 zip(averaged_grads, self.outcome_classifier.trainable_variables))
 
             # Calculate average loss and accuracy for the epoch
-            avg_loss = total_loss / num_steps_per_epoch
-            avg_accuracy = total_accuracy / num_steps_per_epoch
+            avg_loss = total_loss / n_steps_per_epoch
+            avg_accuracy = total_accuracy / n_steps_per_epoch
 
             if epoch % self.report_frequency == 0:
 
@@ -672,6 +673,6 @@ class PredAnnModel:
                                             self.lr_dict, self.auc_thresholds, test_auc)
 
                 # Early stopping condition
-                if test_auc > self.auc_threshold or epoch > self.num_epochs:
+                if test_auc > self.auc_threshold or epoch > self.n_epochs:
                     print('Early stopping triggered based on AUC')
                     break

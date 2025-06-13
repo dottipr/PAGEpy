@@ -168,8 +168,8 @@ These steps are then repeated for a number of user-specified iterations. If the 
 Since this algorithm can take a long time to run, it’s helpful to monitor its progress. The `binary_pso` function will produce two local files that you can load and use to track progress:
 
 ```python
-pso_df = pd.read_pickle("pso_df.pkl")
-pso_dict = pd.read_pickle("pso_dict.pkl")
+pso_df = pd.read_pickle("pso_fitness_scores.pkl")
+pso_dict = pd.read_pickle("pso_particle_history.pkl")
 
 PAGEpy_plot.plot_pso_row_averages(pso_df)
 PAGEpy_plot.plot_hamming_distance(pso_dict)
@@ -184,12 +184,12 @@ PAGEpy_plot.plot_sorted_frequencies(pso_dict, pso_df)
 ![example_features_frequencies_plot.png](https://raw.githubusercontent.com/sean-otoole/PAGEpy/refs/heads/main/example_images/example_features_frequencies_plot.png)
 - plot_sorted_frequencies will show the proportional representation of features in the first and latest generations.
 
-The output of the PSO will return the best-performing feature set as well as its associated score. Additionally, the best-performing feature set will be written within the local directory as such: `pso_genes_result.pkl`.
+The output of the PSO will return the best-performing feature set as well as its associated score. Additionally, the best-performing feature set will be written within the local directory as such: `pso_selected_genes.pkl`.
 
 Subsequently, you can use the optimized feature set to then train a new model and potentially produce an improved score with regards to the Test set AUC value as such:
 
 ```python
-with open('pso_genes_result.pkl', 'wb') as f:
+with open('pso_selected_genes.pkl', 'wb') as f:
     pickle.dump(pso_genes, f)
       
 new_model = PredAnnModel(current_data,pso_genes,num_epochs=50)
@@ -424,8 +424,8 @@ Computes and plots the average Hamming distance among feature sets in each gener
 import pandas as pd
 import PAGEpy_plot
 
-pso_df = pd.read_pickle("pso_df.pkl")
-pso_dict = pd.read_pickle("pso_dict.pkl")
+pso_df = pd.read_pickle("pso_fitness_scores.pkl")
+pso_dict = pd.read_pickle("pso_particle_history.pkl")
 
 PAGEpy_plot.plot_pso_row_averages(pso_df)
 

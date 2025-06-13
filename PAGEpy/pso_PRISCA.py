@@ -23,14 +23,13 @@ import warnings
 from typing import Callable
 
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import mixed_precision
 
 from PAGEpy.individual_fold_class import IndividualFold
 from PAGEpy.models import SimpleNN
 from PAGEpy.multiple_folds_class import \
-    MultipleFolds  # TO DO: unify folds in a single script
+    MultipleFolds  # TODO: unify folds in a single script
 
 warnings.filterwarnings('ignore')  # Suppress all warnings for cleaner output
 
@@ -43,10 +42,10 @@ tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow info logs
 warnings.filterwarnings('ignore', category=UserWarning, message='.*CUDA.*')
 
 
-######################### PSO ALGORITHM #########################
+####################### FITNESS FUNCTION ########################
 
 def reduce_input_features(
-        input_data: IndividualFold, current_genes: list
+        raw_data: IndividualFold, current_genes: list
 ):
     """
     Subset the input data to include only the selected genes.
@@ -57,21 +56,29 @@ def reduce_input_features(
     """
     # Find indices of selected genes in the complete gene list
     gene_set_indices = np.where(
-        np.isin(input_data.genes_list, current_genes))[0]
+        np.isin(raw_data.genes_list, current_genes))[0]
 
     # Subset training and test data to selected genes only
-    x_train = input_data.x_train[:, gene_set_indices]
-    x_test = input_data.x_test[:, gene_set_indices]
+    x_train = raw_data.x_train[:, gene_set_indices]
+    x_test = raw_data.x_test[:, gene_set_indices]
 
     # Labels remain unchanged
-    y_train = input_data.y_train
-    y_test = input_data.y_test
+    y_train = raw_data.y_train
+    y_test = raw_data.y_test
 
     return x_train, x_test, y_train, y_test
 
 
-def evaluate_fitness(
-    particle, current_folds, gene_list, particle_id, generation_nb, loud=True
+def evaluate_selected_genes_fitness(
+    particle: np.ndarray,
+    crossval_folds: MultipleFolds,
+    all_gene_names: list,
+    particle_id: int,
+    generation_nb: int,
+    model_class=None,
+    model_params: dict = None,
+    training_params: dict = None,
+    loud: bool = True
 ):
     """
     Evaluate the fitness of a gene selection (PSO particle) using
@@ -84,95 +91,106 @@ def evaluate_fitness(
 
     Args:
         particle (array-like): Binary vector indicating selected genes (1=selected, 0=not)
-        current_folds (MultipleFolds): Cross-validation data structure
-        gene_list (list): Complete list of available gene names
+        crossval_folds (MultipleFolds): Cross-validation data structure
+        all_gene_names (list): Complete list of available gene names
         particle_id (int): Index of current population member (for progress reporting)
         generation_nb (int): Current generation number (for progress reporting)
+        model_class: Model class to instantiate (default: SimpleNN)
+        model_params (dict): Parameters for model initialization
+        training_params (dict): Parameters for model training
         loud (bool): Whether to print progress messages (default: True)
 
     Returns:
-        float: Fitness score (average AUC across 5 folds)
+        float: Fitness score (average AUC across all folds)
                Returns 0 if no genes are selected
 
-    Process:
-        1. Convert binary individual to boolean mask
-        2. Select genes based on the mask
-        3. If no genes selected, return fitness of 0
-        4. Perform 5-fold cross-validation:
-           - For each fold: train neural network and get test AUC
-        5. Return average AUC across all folds
 
-    Note: This function is computationally expensive as it trains 5
-          neural networks per evaluation. Each network trains for up
-          to 50 epochs.
+    Note: This function is computationally expensive as it trains k
+          neural networks per evaluation.
     """
     start_time = time.time()
 
     # Convert individual to boolean array for gene selection
-    particle = np.array(particle, dtype=bool)
-    gene_list = np.array(gene_list)
-    selected_genes = gene_list[particle]
+    selected_gene_names = [
+        gene for gene, selected in zip(all_gene_names, particle) if selected
+    ]
+    n_selected_genes = len(selected_gene_names)
+
+    # Set default parameters
+    if model_class is None:
+        model_class = SimpleNN
+
+    if model_params is None:
+        model_params = {
+            'n_input_features': n_selected_genes,
+        }
+
+    if training_params is None:
+        training_params = {
+            'n_epochs': 50,
+            'batch_size': 512,
+        }
 
     # Return zero fitness if no genes are selected
-    if len(selected_genes) == 0:
-        return 0
+    if n_selected_genes == 0:
+        if loud:
+            print(
+                f"No genes selected for particle {particle_id+1}, generation {generation_nb}")
+        return 0.0
 
     # Progress reporting
     if loud:
-        print(
-            f"Currently training, population member {particle_id+1}, generation {generation_nb}")
+        print(f"Training particle {particle_id+1}, generation {generation_nb} "
+              f"with {n_selected_genes} genes")
 
-    # Perform 5-fold cross-validation
-    # TO DO: nb of folds is hard-coded!! Can I change this?
-    fold_names = ['first', 'second', 'third', 'fourth', 'fifth']
-    results = {}
+    n_folds = crossval_folds.folds_count
+    fold_aucs = []
 
-    # Sequentially execute each fold (could be parallelized for speed)
-    for fold_id in range(5):
-        # Create an IndividualFold object with current fold data
-        current_fold = IndividualFold(current_folds, fold_id)
-        x_train, x_test, y_train, y_test = reduce_input_features(
-            current_fold, selected_genes
-        )
+    # Perform k-fold cross-validation
+    for fold_id in range(n_folds):
+        try:
+            # Create an IndividualFold object with current fold data
+            current_fold = IndividualFold(crossval_folds, fold_id)
+            x_train, x_test, y_train, y_test = reduce_input_features(
+                current_fold, selected_gene_names
+            )
 
-        # Trains a SimpleNNModel using selected genes
-        # TODO: qui devo riuscire ad estrapolare current_model come argomento della fct
-        # e magari creare una "superclasse" per i modelli oppure verificare che
-        # la classe passata come current_model abbia i metodi appropriati e che
-        # sia possibile ottenere test_auc nello stesso modo
-        current_model = SimpleNN(n_genes=len(selected_genes))
-        current_model.train(
-            x_train, y_train, num_epochs=50, batch_size=512
-        )
-        test_auc = current_model.evaluate(x_test, y_test)
+            # Instantiate and train model
+            current_model = model_class(**model_params)
+            current_model.train(x_train, y_train, **training_params)
 
-        # Returns the test AUC score for the fold
-        results[fold_names[fold_id]] = test_auc
+            # Evaluate model
+            fold_auc = current_model.evaluate(x_test, y_test)
+            fold_aucs.append(fold_auc)
+
+            if loud:
+                print(f"  Fold {fold_id + 1}/{n_folds}: AUC = {fold_auc:.4f}")
+
+        except Exception as e:
+            if loud:
+                print(f"  Error in fold {fold_id + 1}: {str(e)}")
+            fold_aucs.append(0.0)  # Assign zero fitness for failed folds
 
     if loud:
-        print("All processes completed.")
+        print(f"All folds completed for particle {particle_id+1}, "
+              f"generation {generation_nb}")
 
     # Calculate final fitness score as average AUC across folds
-    score = np.mean(
-        [results['first'],
-         results['second'],
-         results['third'],
-         results['fourth'],
-         results['fifth']]
-    )
+    score = np.mean(fold_aucs)
     # score = round(score,3)
     # Round for consistency and to avoid precision issues
-    # TO DO: check if rounding is necessary of if he's only doing this for printing
+    # TODO: check if rounding is necessary of if he's only doing this for printing
     # score = round(float(score), 3)
-
-    if loud:
-        print(f"Average final test AUC value: {round(score, 3)}")
 
     end_time = time.time()
 
     if loud:
+        print(f"Average final test AUC value: {round(score, 3)}")
         print(f"Total time: {end_time - start_time} seconds")
-    return score
+
+    return float(score)
+
+######################### PSO ALGORITHM #########################
 
 
 def moving_average(arr, window_size):
@@ -192,7 +210,7 @@ def moving_average(arr, window_size):
     ]).T
 
 
-class ProgressTracker:
+class ProgressTracker:  # TODO: refactor this!!
     """
     Track optimization progress using exponential moving average.
 
@@ -237,7 +255,6 @@ class BinaryPSO:
 
     Attributes:
         POP_SIZE (int): Population size (number of particles)
-        N_GENERATIONS (int): Number of generations to run
         W (float): Inertia weight - controls momentum
         C1 (float): Cognitive parameter - attraction to personal best
         C2 (float): Social parameter - attraction to global best
@@ -252,12 +269,12 @@ class BinaryPSO:
     """
 
     def __init__(
-        self, pop_size, n_features, n_generations, w=1, c1=2, c2=2, n_reps=4
+        self, pop_size, n_features, fitness_function: Callable, w=1, c1=2, c2=2, n_reps=4
     ):
         # PSO Algorithm Parameters
         self.pop_size = pop_size
         self.n_features = n_features
-        self.n_generations = n_generations
+        self.fitness_function = fitness_function
         self.w = w    # Inertia weight
         self.c1 = c1  # Cognitive parameter
         self.c2 = c2  # Social parameter
@@ -274,16 +291,9 @@ class BinaryPSO:
         # Initialize population
         self.initialize_population()
 
-        # Tracking variables
-        # TO DO
-
     def initialize_population(self):
         """
         Initialize random population of binary particles and their velocities.
-
-        Args:
-            n_features (int): Number of features (genes) in the problem
-            --> TO DO: not sure what this means
         """
         # Initialize binary positions randomly (0 or 1 for each gene)
         self.population = np.random.randint(
@@ -317,6 +327,78 @@ class BinaryPSO:
             np.ndarray: Probabilities in range [0, 1]
         """
         return 1 / (1 + np.exp(-alpha * x))
+
+    def optimize(
+        self,
+        input_data,  # not sure about the type here
+        feature_names: list,
+        n_generations: int,
+        adaptive_metrics: bool = False,
+        print_progress: bool = False
+    ):
+        # Initialize progress tracking variables
+        particle_history = {}  # Store population positions by generation
+        fitness_score_history = []  # Store all fitness scores by generation
+
+        if adaptive_metrics:
+            # Create tracker with smoothing factor
+            progress_tracker = ProgressTracker(alpha=0.2)
+            prev_avg_fitness = None
+        else:  # to avoid undefined variable error
+            progress_tracker = None
+            prev_avg_fitness = 0
+
+        crossval_folds = MultipleFolds(input_data, 5)
+
+        for generation in range(n_generations):
+            start_time = time.time()
+
+            # Evaluate fitness for all particles
+            fitness_scores = self.evaluate_population(
+                crossval_folds=crossval_folds,
+                feature_names=feature_names,
+                generation_nb=generation+1,
+                verbose=print_progress
+            )
+            avg_fitness = np.mean(fitness_scores)
+
+            # Update personal best
+            improved = fitness_scores > self.p_best_scores
+            self.p_best[improved] = self.population[improved]
+            self.p_best_scores[improved] = fitness_scores[improved]
+
+            # Update global best
+            g_best_idx = np.argmax(self.p_best_scores)
+            self.g_best = self.p_best[g_best_idx]
+            self.g_best_score = self.p_best_scores[g_best_idx]
+
+            # Apply progress-based adjustment for C1 and C2
+            if adaptive_metrics and prev_avg_fitness is not None:
+                self.progress_based_adjustment(
+                    avg_fitness, prev_avg_fitness, progress_tracker
+                )
+                prev_avg_fitness = avg_fitness
+
+            # Update velocities and positions
+            self.update_velocities()
+            self.update_positions()
+
+            # Store tracking data
+            particle_history[generation] = self.population.copy()
+            fitness_score_history.append(
+                {f"fitness_p_{i}": score_p_i
+                 for i, score_p_i in enumerate(fitness_scores)}
+            )
+
+            end_time = time.time()
+
+            print(f"Total time for generation {generation + 1}: "
+                  f"{round((end_time - start_time), 2)} seconds")
+            print(f"Generation {generation + 1}: Best AUC = {self.g_best_score:.4f}, "
+                  f"Avg = {avg_fitness:.4f}")
+            print()
+
+        return particle_history, fitness_score_history
 
     def update_positions(self):
         """
@@ -352,24 +434,23 @@ class BinaryPSO:
         )
 
     def evaluate_population(
-        self, fitness_function: Callable,
-        current_folds: MultipleFolds, current_genes: list,
-        generation_nb: int, frequent_reporting: bool = False
+        self,
+        crossval_folds: MultipleFolds, feature_names: list,
+        generation_nb: int, verbose: bool = False
     ):
         """Evaluate fitness for all particles in the population"""
 
         fitness_scores = np.array([
-            # round(np.mean([
             np.mean([
-                fitness_function(
+                self.fitness_function(
                     particle=particle,
-                    current_folds=current_folds,
-                    gene_list=current_genes,
+                    crossval_folds=crossval_folds,
+                    # qui non va bene che sia ancora all_gene_names ma devo vedere come fare per i params
+                    all_gene_names=feature_names,
                     particle_id=particle_id,
                     generation_nb=generation_nb,
-                    loud=frequent_reporting
+                    loud=verbose
                 ) for _ in range(self.n_reps)
-                # ]), 3)
             ])
             for particle_id, particle in enumerate(self.population)
         ])
@@ -438,9 +519,9 @@ class BinaryPSO:
 # TODO: add model choice as a parameter!
 
 def run_binary_pso(
-    current_genes: list, current_data, pop_size: int, n_generations: int,
+    input_data, feature_names: list, pop_size: int, n_generations: int,
     w: float = 1, c1: float = 2, c2: float = 2, n_reps: int = 4,
-    frequent_reporting: bool = False, adaptive_metrics: bool = False
+    verbose: bool = False, adaptive_metrics: bool = False
 ):
     """
     Run binary Particle Swarm Optimization for feature selection.
@@ -449,81 +530,40 @@ def run_binary_pso(
         tuple: (best_gene_vector, best_score)
     """
 
-    policy = mixed_precision.Policy('mixed_float16')
-    mixed_precision.set_global_policy(policy)
-    print(
-        f"Current mixed precision policy: {mixed_precision.global_policy()}"
-    )
+    mixed_precision.set_global_policy('mixed_float16')
+    if verbose:
+        print(
+            f"Using mixed precision policy: {mixed_precision.global_policy().name}"
+        )
 
-    # NEW: PSO as a class instance
+    # Initialize PSO
     pso = BinaryPSO(
         pop_size=pop_size,
-        n_features=len(current_genes),  # Number of genes/features
-        n_generations=n_generations,
+        n_features=len(feature_names),
+        fitness_function=evaluate_selected_genes_fitness,
         w=w, c1=c1, c2=c2, n_reps=n_reps)
 
-    # dictionary for saving population history
-    dna_dict = {}
+    # Run PSO to optimize gene selection
+    particle_history, fitness_score_history = pso.optimize(
+        input_data=input_data,
+        feature_names=feature_names,
+        n_generations=n_generations,
+        adaptive_metrics=adaptive_metrics,
+        print_progress=verbose
+    )
 
-    # track fitness scores for each generation
-    pso_df = pd.DataFrame(columns=[f'auc_{i}' for i in range(pop_size)])
-    fitness_history = []
+    # Extract and save selected genes
+    selected_genes = [gene for gene, selected in zip(
+        feature_names, pso.g_best) if selected == 1]
+    print(f"Selected {len(selected_genes)} genes: {selected_genes}")
 
-    if adaptive_metrics:
-        # Create tracker with smoothing factor
-        progress_tracker = ProgressTracker(alpha=0.2)
-        prev_avg_fitness = None
+    with open('pso_selected_genes.pkl', 'wb') as f:
+        pickle.dump(selected_genes, f)
 
-    for n_generation in range(n_generations):
-        start_time = time.time()
-        current_folds = MultipleFolds(current_data, 5)
-
-        # Evaluate fitness for all particles
-        fitness_scores = pso.evaluate_population(
-            fitness_function=evaluate_fitness,
-            current_folds=current_folds, current_genes=current_genes,
-            generation_nb=n_generation+1, frequent_reporting=frequent_reporting
-        )
-        avg_fitness = np.mean(fitness_scores)
-
-        # Update personal bests
-        improved = fitness_scores > pso.p_best_scores
-        pso.p_best[improved] = pso.population[improved]
-        pso.p_best_scores[improved] = fitness_scores[improved]
-
-        # Update global best
-        g_best_idx = np.argmax(pso.p_best_scores)  # particle with the best
-        pso.g_best = pso.p_best[g_best_idx]
-        pso.g_best_score = pso.p_best_scores[g_best_idx]
-
-        # Apply progress-based adjustment for C1 and C2
-        if adaptive_metrics and prev_avg_fitness is not None:
-            pso.progress_based_adjustment(
-                avg_fitness, prev_avg_fitness, progress_tracker)
-            prev_avg_fitness = avg_fitness
-
-        # Update velocities and positions
-        pso.update_velocities()
-        pso.update_positions()
-
-        # Track progress
-        fitness_history.append(avg_fitness)
-        pso_df.loc[len(pso_df)] = fitness_scores
-        dna_dict[n_generation] = pso.population.copy()
-
-        end_time = time.time()
-        print(
-            f"Total time for generation {n_generation+1}: {round((end_time - start_time), 2)} seconds")
-        print(
-            f"Generation {n_generation+1}: Best AUC = {pso.g_best_score}, Avg = {avg_fitness}")
-        print("\n")
-
-    #  NEW:
-    # Save results once at the end
-    pso_df.to_pickle("pso_df.pkl")
-    pickle.dump(dna_dict, open("pso_dict.pkl", "wb"))
-    pso_genes = [item for item, m in zip(current_genes, pso.g_best) if m == 1]
-    with open('pso_genes_result.pkl', 'wb') as f:
-        pickle.dump(pso_genes, f)
+    # Save results (history)
+    with open("pso_particle_history.pkl", "wb") as f:
+        pickle.dump(particle_history, f)
+    with open("pso_fitness_scores.pkl", "wb") as f:
+        pickle.dump(fitness_score_history, f)
 
     return pso.g_best, pso.g_best_score
