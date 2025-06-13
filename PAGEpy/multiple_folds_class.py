@@ -1,6 +1,6 @@
-from sklearn.model_selection import StratifiedKFold
-import numpy as np
 import pandas as pd
+from sklearn.model_selection import StratifiedKFold
+
 
 class MultipleFolds:
     """
@@ -36,7 +36,7 @@ class MultipleFolds:
         self.y_test_folds = []
 
         # Extract features and target data
-        self.X = input_data.x_train  # Assumed to be a DataFrame
+        self.x = input_data.x_train  # Assumed to be a DataFrame
         self.y = input_data.y_train  # Assumed to be a DataFrame
 
         # Generate the folds immediately upon initialization
@@ -49,18 +49,21 @@ class MultipleFolds:
         """
         Splits the data into stratified K-folds and stores the train-test sets in lists.
         """
-        skf = StratifiedKFold(n_splits=self.folds_count, shuffle=True, random_state=None)
-    
+        skf = StratifiedKFold(n_splits=self.folds_count,
+                              shuffle=True, random_state=None)
+
         # Loop through each fold's train-test split
-        for train_index, test_index in skf.split(self.X, self.y):
+        for train_index, test_index in skf.split(self.x, self.y):
             # Check if X is a DataFrame or NumPy array and index accordingly
-            if isinstance(self.X, pd.DataFrame):
-                self.x_train_folds.append(self.X.iloc[train_index])  # Use iloc for DataFrame
-                self.x_test_folds.append(self.X.iloc[test_index])
+            if isinstance(self.x, pd.DataFrame):
+                # Use iloc for DataFrame
+                self.x_train_folds.append(self.x.iloc[train_index])
+                self.x_test_folds.append(self.x.iloc[test_index])
             else:  # Assume it's a NumPy array
-                self.x_train_folds.append(self.X[train_index])  # Use array slicing
-                self.x_test_folds.append(self.X[test_index])
-    
+                self.x_train_folds.append(
+                    self.x[train_index])  # Use array slicing
+                self.x_test_folds.append(self.x[test_index])
+
             # y should always be a DataFrame, so we keep iloc here
             self.y_train_folds.append(self.y[train_index])
             self.y_test_folds.append(self.y[test_index])

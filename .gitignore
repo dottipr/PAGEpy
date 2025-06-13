@@ -8,3 +8,11 @@ dist/
 build/
 *.egg-info/
 build/lib/PAGEpy
+
+*.pyc
+*.pkl
+.DS_Store
+.vscode/
+.python-version
+train_samples.txt
+

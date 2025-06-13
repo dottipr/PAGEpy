@@ -2,6 +2,9 @@
 requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
+[tool.hatch.envs.default]
+python = "3.12"
+
 [project]
 name = "PAGEpy"
 version = "1.0.13"
