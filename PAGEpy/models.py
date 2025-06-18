@@ -147,7 +147,6 @@ class SimpleNN:
 
         Attributes:
             test_auc (float): Final AUC score on test set after training
-            current_epoch_list (list): List tracking epochs (currently unused)
         """
 
         self.learning_rate = learning_rate
@@ -165,8 +164,6 @@ class SimpleNN:
         self.model = None
         self.optimizer = None  # Optimizer for training
         self.test_auc = None  # list of metrics for evaluating the model
-        # list of epoch numbers for trackking the metrics across models
-        self.current_epoch_list = []
 
         self.build_model()  # Create the neural network architecture
 
@@ -454,9 +451,6 @@ class PredAnnModel:
         self.train_accuracy_list = []  # list of metrics for evaluating the model
         self.test_auc_list = []  # list of metrics for evaluating the model
         self.train_auc_list = []  # list of metrics for evaluating the model
-        # self.train_auc_list = []  # list of metrics for evaluating the model
-        # list of epoch numbers for trackking the metrics across models
-        self.current_epoch_list = []
 
         # automatically executed functions for establishin and training the model
         self.set_mixed_precision()
@@ -630,8 +624,9 @@ class PredAnnModel:
                 # Compute Training Accuracy
                 predicted_train_labels = tf.cast(
                     train_predictions > 0.5, tf.float32)  # Threshold at 0.5
-                train_accuracy = tf.reduce_mean(
-                    tf.cast(tf.equal(predicted_train_labels, train_labels_float), tf.float32))
+                train_accuracy = tf.reduce_mean(tf.cast(tf.equal(
+                    predicted_train_labels, train_labels_float), tf.float32)
+                ).numpy()
 
                 # Evaluate on test data
                 outcome_predictions = self.outcome_classifier(self.x_test)
@@ -649,8 +644,9 @@ class PredAnnModel:
                 # Compute Test Accuracy
                 predicted_outcome_labels = tf.cast(
                     outcome_predictions > 0.5, tf.float32)
-                test_accuracy = tf.reduce_mean(
-                    tf.cast(tf.equal(predicted_outcome_labels, outcome_labels_float), tf.float32))
+                test_accuracy = tf.reduce_mean(tf.cast(tf.equal(
+                    predicted_outcome_labels, outcome_labels_float), tf.float32)
+                ).numpy()
 
                 # Store metrics
                 self.train_auc_list.append(train_auc)  # Store train AUC
