@@ -19,9 +19,9 @@ from sklearn.model_selection import train_test_split
 from tensorflow import keras
 from tensorflow.keras import Sequential, layers, mixed_precision, models
 
-from PAGEpy.format_data_class import FormatData
+from PAGEpy.format_data_class import GeneExpressionDataset
 from PAGEpy.individual_fold_class import IndividualFold
-from PAGEpy.multiple_folds_class import MultipleFolds
+from PAGEpy.multiple_folds_class import KFoldData
 
 print("ciao")
 
@@ -186,7 +186,7 @@ class PredAnnModel:
         Parameters:
         - current_genes (list): A non-empty list of genes to be used as model features.
         - learning_rate (float): intial learning rate of the model
-        - input_data (RcDataPreparation class object): data for training the model that has been appropriately formattedd.
+        - input_data (GeneExpressionDataset class object): data for training the model that has been appropriately formattedd.
         - dropout_rate (float): Dropout rate to prevent overfitting (default: 0.3).
         - balance (bool): Whether to balance technology and outcome variables during training (default: True).
         - l2_reg (float): Strength of L2 regularization (default: -0.2).
@@ -454,7 +454,7 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W=1, C1=2, 
     # Personal bests (initially the particles themselves)
     p_best = np.copy(population)
 
-    current_folds = MultipleFolds(current_data, 5)
+    current_folds = KFoldData(current_data, 5)
 
     # n = 2
 
@@ -496,7 +496,7 @@ def binary_pso(current_genes, current_data, POP_SIZE, N_GENERATIONS, W=1, C1=2, 
 
         start_time = time.time()
         # Evaluate fitness
-        current_folds = MultipleFolds(current_data, 5)
+        current_folds = KFoldData(current_data, 5)
 
         fitness_scores = np.array([
             round(np.mean([evaluate_fitness(ind, current_folds, current_genes,

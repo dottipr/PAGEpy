@@ -399,7 +399,7 @@ class PredAnnModel:
         Parameters:
         - current_genes (list): A non-empty list of genes to be used as model features.
         - learning_rate (float): intial learning rate of the model
-        - input_data (RcDataPreparation class object): data for training the model that has been appropriately formattedd.
+        - input_data (GeneExpressionDataset class object): data for training the model that has been appropriately formattedd.
         - dropout_rate (float): Dropout rate to prevent overfitting (default: 0.3).
         - balance (bool): Whether to balance technology and outcome variables during training (default: True).
         - l2_reg (float): Strength of L2 regularization (default: -0.2).
@@ -421,7 +421,8 @@ class PredAnnModel:
             raise ValueError(
                 "The 'current_genes' parameter must be a non-empty list of genes.")
 
-        self.input_data = input_data  # RcDataPreparation class object for training the model
+        # GeneExpressionDataset class object for training the model
+        self.input_data = input_data
         # List of genes provided by the user to define model features.
         self.current_genes = current_genes
         self.learning_rate = learning_rate

@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from PAGEpy.format_data_class import FormatData
+from PAGEpy.format_data_class import GeneExpressionDataset
 from PAGEpy.models import SimpleNN
 
 
 def plot_model_history(
     model: SimpleNN,
-    data: FormatData,
+    data: GeneExpressionDataset,
     save_path: Union[str, Path, None] = None
 ) -> None:
     """

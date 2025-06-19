@@ -1,69 +1,51 @@
-import pandas as pd
+import numpy as np
 from sklearn.model_selection import StratifiedKFold
 
+from PAGEpy.format_data_class import GeneExpressionDataset
+from PAGEpy.individual_fold_class import IndividualFold
 
-class MultipleFolds:
+
+class KFoldData:
     """
-    A class to generate stratified K-fold splits for training and testing data.
-
-    Attributes:
-        rc_data (object): An object containing x_train and y_train as DataFrames.
-        folds_count (int): Number of folds for cross-validation.
-        x_train_folds (list): Stores the training feature sets for each fold.
-        x_test_folds (list): Stores the testing feature sets for each fold.
-        y_train_folds (list): Stores the training target sets for each fold.
-        y_test_folds (list): Stores the testing target sets for each fold.
-        X (DataFrame): The input features from rc_data.
-        y (DataFrame): The target variable from rc_data.
-        y_stratify (Series): The column used for stratification in cross-validation.
+    Generates stratified K-fold splits from a GeneExpressionDataset.
     """
 
-    def __init__(self, input_data, folds_count=5):
-        """
-        Initializes the rcFolds object and automatically generates stratified K-folds.
+    def __init__(
+        self, dataset: GeneExpressionDataset, n_folds=5, random_state=1
+    ):
+        self.dataset = dataset
+        self.n_folds = n_folds
+        self.random_state = random_state
 
-        Args:
-            rc_data (object): An object containing x_train and y_train as DataFrames.
-            folds_count (int, optional): The number of folds for cross-validation (default is 5).
-        """
-        self.input_data = input_data
-        self.folds_count = folds_count
+        self.x = dataset.adata[dataset.train_mask, dataset.selected_features].X
+        if not isinstance(self.x, np.ndarray):
+            self.x = self.x.toarray()
+        self.y = dataset.adata.obs.loc[dataset.train_mask, 'Label'].values
 
-        # Initialize lists to store train-test splits
-        self.x_train_folds = []
-        self.x_test_folds = []
-        self.y_train_folds = []
-        self.y_test_folds = []
+        # Compute split indices
+        skf = StratifiedKFold(
+            n_splits=self.n_folds, shuffle=True, random_state=self.random_state
+        )
+        self._splits = list(skf.split(self.x, self.y))
 
-        # Extract features and target data
-        self.x = input_data.x_train  # Assumed to be a DataFrame
-        self.y = input_data.y_train  # Assumed to be a DataFrame
+    def __len__(self):
+        return self.n_folds
 
-        # Generate the folds immediately upon initialization
-        self.get_folds()
+    def __getitem__(self, idx):
+        if idx < 0 or idx >= self.n_folds:
+            raise IndexError("Fold index out of range")
+        train_idx, test_idx = self._splits[idx]
+        return IndividualFold(self, train_idx, test_idx)
 
-        # Pass the list of all genes for the purpose of feature selection during ANN model construction
-        self.genes_list = self.input_data.genes_list
+    #     self.folds = []
+    #     self._generate_folds()
 
-    def get_folds(self):
-        """
-        Splits the data into stratified K-folds and stores the train-test sets in lists.
-        """
-        skf = StratifiedKFold(n_splits=self.folds_count,
-                              shuffle=True, random_state=None)
-
-        # Loop through each fold's train-test split
-        for train_index, test_index in skf.split(self.x, self.y):
-            # Check if X is a DataFrame or NumPy array and index accordingly
-            if isinstance(self.x, pd.DataFrame):
-                # Use iloc for DataFrame
-                self.x_train_folds.append(self.x.iloc[train_index])
-                self.x_test_folds.append(self.x.iloc[test_index])
-            else:  # Assume it's a NumPy array
-                self.x_train_folds.append(
-                    self.x[train_index])  # Use array slicing
-                self.x_test_folds.append(self.x[test_index])
-
-            # y should always be a DataFrame, so we keep iloc here
-            self.y_train_folds.append(self.y[train_index])
-            self.y_test_folds.append(self.y[test_index])
+    # def _generate_folds(self):
+    #     """
+    #     Splits the data into stratified K-folds.
+    #     """
+    #     skf = StratifiedKFold(n_splits=self.n_folds,
+    #                           shuffle=True, random_state=self.random_state)
+    #     for train_idx, test_idx in skf.split(self.x, self.y):
+    #         fold = IndividualFold(self, train_idx, test_idx)
+    #         self.folds.append(fold)

@@ -1,4 +1,5 @@
-# format the data for the neural network
+'''format the data for the neural network'''
+
 import fnmatch
 import os
 import pickle
@@ -11,19 +12,30 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
 
-class FormatData:
+class GeneExpressionDataset:
+    """
+    A class to handle gene expression datasets, including loading, preprocessing,
+    feature selection, and train-test splitting.
+    """
+
     def __init__(
         self,
-        data_dir='/your/local/dir/data_folder/',
+        data_dir: str = '/your/local/dir/data_folder/',
+        counts_pattern: str = "*counts.mtx",
+        barcodes_pattern: str = "*barcodes.txt",
+        genes_pattern: str = "*genes.txt",
+        metadata_pattern: str = "*infection_status.csv",
         test_set_size=0.2,
         random_seed=1,
         hvg_count=1000,
         pval_cutoff=0.01,
         gene_selection='HVG',
-        pval_correction='bonferroni'
+        pval_correction='bonferroni',
+        features_out_filename: str = "feature_set.pkl",
+        train_samples_out_filename: str = "train_samples.txt",
     ):
         """
-        Initializes the RcDataPreparation class with specified parameters.
+        Initializes the GeneExpressionDataset class with specified parameters.
 
         Parameters:
         - data_dir (str): Path to the holder containing the neccesary files.
@@ -33,165 +45,203 @@ class FormatData:
         - gene_selection (str): method of feature selection can either be 'HVG' or 'Diff'
         """
 
+        # Directory and file patterns
         self.data_dir = data_dir
+        self.counts_path = self._find_file(counts_pattern)
+        self.barcodes_path = self._find_file(barcodes_pattern)
+        self.genes_path = self._find_file(genes_pattern)
+        # labels_path = find_file("*target_variable.csv")[0] # MODIFIED !!
+        self.metadata_path = self._find_file(metadata_pattern)
+        self.features_out_fn = features_out_filename
+        self.train_samples_out_fn = train_samples_out_filename
+
+        # Dataset parameters
         self.test_set_size = test_set_size
         self.random_seed = random_seed
         self.hvg_count = hvg_count
         self.pval_cutoff = pval_cutoff
-        self.gene_selection = gene_selection
+        self.gene_selection_method = gene_selection
         self.pval_correction = pval_correction
 
-        # Initialize placeholders for class attributes
-        self.adata = None
-        self.counts_df = None
-        self.target_variable = None
-        self.x_train = None
-        self.x_test = None
-        self.y_train = None
-        self.y_test = None
-        self.genes_list = None
-        self.selected_genes = None
-        self.train_indices = None
-        self.test_indices = None
-        self.genes = None
-        self.barcodes = None
-        self.selected_genes = None
+        # Load and prepare AnnData
+        self.adata = self._load_and_normalize_data()
+        self.genes_list = self.adata.var_names.to_list()
 
-        # Automatically execute the data preparation pipeline
-        self.construct_and_process_anndata()
-        self.encode_labels()
-        self.retrieve_counts_df()
-        self.retrieve_all_genes()
-        self.scale_data()
-        self.establish_test_train()
+        # Encode labels and prepare splits
+        self._encode_labels()
+        self.train_mask, self.test_mask = self._split_train_test()
 
-    def construct_and_process_anndata(self):
+        # Select features and scale data
+        self.selected_features = self._select_features()
+
+        # Initialize attributes for train-test splits and data
+        self.scaler = None
+        self.x_train, self.x_test, self.y_train, self.y_test = self._prepare_scaled_data()
+
+    def _find_file(self, pattern: str) -> str:
+        files = os.listdir(self.data_dir)
+        matches = fnmatch.filter(files, pattern)
+        if not matches:
+            raise FileNotFoundError(
+                f"No file matching {pattern} in {self.data_dir}")
+        return os.path.join(self.data_dir, matches[0])
+
+    def _load_and_normalize_data(self) -> sc.AnnData:
         """
-        Constructs an anndata object.
+        Loads and prepares data from matrix, barcodes, genes, and metadata files.
+
+        Args:
+            counts_pattern (str): Glob pattern for the matrix file.
+            barcodes_pattern (str): Glob pattern for the barcodes file.
+            genes_pattern (str): Glob pattern for the genes file.
+            metadata_pattern (str): Glob pattern for the metadata file.
+
+        Returns:
+            AnnData: The constructed AnnData object (also assigned to self.adata).
 
         Raises:
-        - FileNotFoundError: If the specified RDS file does not exist.
-        - ValueError: If an error occurs during data extraction or conversion.
+            FileNotFoundError: If any required file is missing.
+            ValueError: If data shapes are inconsistent or loading fails.
         """
-        if not os.path.exists(self.data_dir):
-            raise FileNotFoundError(f"Path not found at: {self.data_dir}")
+        if not os.path.isdir(self.data_dir):
+            raise FileNotFoundError(f"Directory not found: {self.data_dir}")
 
         try:
-            relevant_files = os.listdir(self.data_dir)
+            adata = sc.AnnData(
+                X=mmread(self.counts_path).tocsc().T,
+                obs=pd.read_csv(self.metadata_path),  # dataframe
+            )
 
-            matrix_path = self.data_dir + fnmatch.filter(
-                relevant_files, "*counts.mtx")[0]
-            barcodes_path = self.data_dir + fnmatch.filter(
-                relevant_files, "*barcodes.txt")[0]
-            genes_path = self.data_dir + fnmatch.filter(
-                relevant_files, "*genes.txt")[0]
-            # target_var_path = self.data_dir + fnmatch.filter(
-            #    relevant_files, "*target_variable.csv")[0] # MODIFIED !!
-            target_var_path = self.data_dir + fnmatch.filter(
-                relevant_files, "*infection_status.csv")[0]
+            # observations are barcodes (data points):
+            adata.obs_names = pd.read_csv(
+                self.barcodes_path, header=None, sep="\t")[0].values
 
-            # Convert to Compressed Sparse Column format for efficiency
-            X = mmread(matrix_path).tocsc()
-            self.barcodes = pd.read_csv(barcodes_path, header=None, sep="\t")[
-                0].values  # Read as a NumPy array
-            self.genes = pd.read_csv(genes_path, header=None, sep="\t")[
-                0].values  # Read as a NumPy array
+            # Remove 'Sample' column from obs, as it's duplicated
+            if 'Sample' in adata.obs.columns:
+                adata.obs.drop(columns=['Sample'], inplace=True)
 
-            # Create AnnData object
-            self.adata = sc.AnnData(X.T)
-            self.adata.obs_names = self.barcodes  # Assign cell barcodes
-            self.adata.var_names = self.genes  # Assign gene names
-            # Load the metadata status as metadata
-            metadata_df = pd.read_csv(target_var_path)
-            # Assign the DataFrame to adata.obs
-            self.adata.obs = metadata_df
-            print("Anndata successfully constructed.")
+            # variables are gene names (data features):
+            adata.var_names = pd.read_csv(
+                self.genes_path, header=None, sep="\t")[0].values
+
+            print("AnnData object successfully constructed.")
+
             # Normalize each cell by total counts (to 10,000 counts per cell)
-            sc.pp.normalize_total(self.adata, target_sum=1e4)
-            # Logarithmize the data
-            sc.pp.log1p(self.adata)
-            print('Anndata object counts are now normalized.')
-        except Exception as e:
-            raise ValueError(f"Failed to construct anndata object: {e}")
+            sc.pp.normalize_total(adata, target_sum=1e4)
+            sc.pp.log1p(adata)
 
-    def encode_labels(self):
+            print('AnnData object counts are now normalized.')
+
+        except Exception as e:
+            raise ValueError(f"Failed to construct anndata object: {e}") from e
+
+        return adata
+
+    def _encode_labels(self):
         """
         Encodes the target variable into numerical values.
         """
-        self.target_variable = self.adata.obs['Status']
         label_encoder = LabelEncoder()
-        self.target_variable = label_encoder.fit_transform(
-            self.target_variable)
+        self.adata.obs['Label'] = label_encoder.fit_transform(
+            self.adata.obs['Status'])
 
-    def retrieve_counts_df(self):
-        # Ensure that the number of rows and columns match
-        if len(self.adata.obs_names) != self.adata.X.shape[0]:
-            raise ValueError(
-                f"Mismatch between number of cells in adata.obs_names ({len(self.adata.obs_names)}) and rows in adata.X ({self.adata.X.shape[0]})")
-
-        if len(self.adata.var_names) != self.adata.X.shape[1]:
-            raise ValueError(
-                f"Mismatch between number of genes in adata.var_names ({len(self.adata.var_names)}) and columns in adata.X ({self.adata.X.shape[1]})")
-
-        # Convert sparse matrix to dense array (if memory allows)
-        try:
-            dense_matrix = self.adata.X.toarray() if hasattr(
-                self.adata.X, 'toarray') else self.adata.X
-        except MemoryError:
-            print("MemoryError: Sparse matrix will be used instead of dense.")
-            dense_matrix = self.adata.X
-
-        # Create DataFrame with genes as columns and barcodes as index
-        self.counts_df = pd.DataFrame(
-            dense_matrix, index=self.adata.obs_names, columns=self.adata.var_names)
-
-        # Ensure that rows (barcodes) are labeled correctly with adata.obs_names
-        self.counts_df.index = self.adata.obs['Sample']
-
-    def retrieve_all_genes(self):
-        self.genes_list = self.adata.var_names.to_list()
-
-    def scale_data(self):
-        scaler = MinMaxScaler()
-        self.counts_df = scaler.fit_transform(self.counts_df)
-
-    def establish_test_train(self):
+    def _split_train_test(self) -> tuple:
         """
-        Splits the dataset into training and testing sets and then selects HVGs only from the training set.
+        Splits the dataset using AnnData indexing and stores split information
+        in .obs
         """
-        indices = np.arange(self.adata.shape[0])
-
-        # Split first
-        self.x_train, self.x_test, self.y_train, self.y_test, self.train_indices, self.test_indices = train_test_split(
-            self.counts_df, self.target_variable, indices,
-            test_size=self.test_set_size, random_state=self.random_seed,
-            stratify=self.target_variable
+        train_indices, test_indices = train_test_split(
+            np.arange(self.adata.n_obs),
+            test_size=self.test_set_size,
+            random_state=self.random_seed,
+            stratify=self.adata.obs['Label']
         )
 
-        # Selects features from only the training set
-        adata_train = self.adata[self.train_indices].copy()
+        # Store split information in AnnData.obs
+        self.adata.obs['split'] = 'test'  # Default to test
+        self.adata.obs.loc[self.adata.obs_names[train_indices],
+                           'split'] = 'train'
 
-        if self.gene_selection == 'HVG':
-            # Compute HVGs only from the training data
+        print(
+            f"Training samples: {len(train_indices)}, "
+            f"Test samples: {len(test_indices)}")
+
+        # Save training sample names
+        with open(self.train_samples_out_fn, 'w', encoding='utf-8') as f:
+            training_samples = pd.Series(
+                self.adata.obs_names[train_indices])
+            for name in training_samples.tolist():
+                f.write(f"{name}\n")
+
+        train_mask = self.adata.obs['split'] == 'train'
+        test_mask = self.adata.obs['split'] == 'test'
+
+        return train_mask, test_mask
+
+    def _select_features(self):
+        """
+        Selects features (genes) from training data using HVG or differential
+        expression.
+        """
+        # Selects features from only the training set (to avoid data leakage)
+        adata_train = self.adata[self.adata.obs['split'] == 'train'].copy()
+
+        if self.gene_selection_method == 'HVG':
+            # Compute HVGs
             sc.pp.highly_variable_genes(
                 adata_train, n_top_genes=self.hvg_count, n_bins=100)
             # Get the list of HVGs
-            self.selected_genes = adata_train.var.index[adata_train.var['highly_variable']].tolist(
-            )
-        elif self.gene_selection == 'Diff':
-            sc.tl.rank_genes_groups(adata_train, 'Status', method='t-test',
-                                    key_added="t-test", corr_method=self.pval_correction)
-            sig_genes = sc.get.rank_genes_groups_df(
-                adata_train, group=self.adata.obs['Status'][0], key='t-test', pval_cutoff=self.pval_cutoff)['names']
-            self.selected_genes = sig_genes.to_list()
-        # Save selected_genes
-        with open("feature_set.pkl", "wb") as f:
-            pickle.dump(self.selected_genes, f)
-        print(
-            f"The total length of the genes list or feature set is: {len(self.selected_genes)}.")
+            selected_features = adata_train.var_names[
+                adata_train.var['highly_variable']].tolist()
 
-        # Save training sample names
-        with open('train_samples.txt', 'w') as f:
-            training_samples = pd.Series(self.barcodes[self.train_indices])
-            for name in training_samples.tolist():
-                f.write(f"{name}\n")
+        elif self.gene_selection_method == 'Diff':
+            sc.tl.rank_genes_groups(
+                adata_train, groupby='Status', method='t-test',
+                key_added="t-test", corr_method=self.pval_correction)
+            sig_genes = sc.get.rank_genes_groups_df(
+                adata_train, group=self.adata.obs['Status'][0], key='t-test',
+                pval_cutoff=self.pval_cutoff)['names']
+            selected_features = sig_genes.to_list()
+
+        else:
+            raise ValueError(
+                f"Invalid gene selection method: {self.gene_selection_method}. "
+                "Choose 'HVG' or 'Diff'.")
+        print(
+            f"Selected {len(selected_features)} "
+            f"features using {self.gene_selection_method}")
+
+        # Save selected genes/features
+        with open(self.features_out_fn, "wb") as f:
+            pickle.dump(selected_features, f)
+
+        return selected_features
+
+    def _prepare_scaled_data(self):
+        """
+        Prepares scaled data for training and testing, fitting scaler only on
+        training data.
+        Returns:
+            x_train, x_test, y_train, y_test
+        """
+        # Extract training and test data for selected features
+        x_train = self.adata[self.train_mask, self.selected_features].X
+        x_test = self.adata[self.test_mask, self.selected_features].X
+
+        # Convert to dense arrays if sparse
+        if not isinstance(x_train, np.ndarray):
+            x_train = x_train.toarray()
+        if not isinstance(x_test, np.ndarray):
+            x_test = x_test.toarray()
+
+        # Fit scaler on training data, transform both train and test
+        scaler = MinMaxScaler()
+        x_train_scaled = scaler.fit_transform(x_train)
+        x_test_scaled = scaler.transform(x_test)
+        self.scaler = scaler  # Store for later use
+
+        # Store labels
+        y_train = self.adata.obs.loc[self.train_mask, 'Label'].values
+        y_test = self.adata.obs.loc[self.test_mask, 'Label'].values
+
+        return x_train_scaled, x_test_scaled, y_train, y_test

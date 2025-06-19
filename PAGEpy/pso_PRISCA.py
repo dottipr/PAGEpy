@@ -29,7 +29,7 @@ from tensorflow.keras import mixed_precision
 from PAGEpy.individual_fold_class import IndividualFold
 from PAGEpy.models import SimpleNN
 from PAGEpy.multiple_folds_class import \
-    MultipleFolds  # TODO: unify folds in a single script
+    KFoldData  # TODO: unify folds in a single script
 
 warnings.filterwarnings('ignore')  # Suppress all warnings for cleaner output
 
@@ -71,7 +71,7 @@ def reduce_input_features(
 
 def evaluate_selected_genes_fitness(
     particle: np.ndarray,
-    crossval_folds: MultipleFolds,
+    crossval_folds: KFoldData,
     all_gene_names: list,
     particle_id: int,
     generation_nb: int,
@@ -143,7 +143,7 @@ def evaluate_selected_genes_fitness(
         print(f"Training particle {particle_id+1}, generation {generation_nb} "
               f"with {n_selected_genes} genes")
 
-    n_folds = crossval_folds.folds_count
+    n_folds = crossval_folds.n_folds
     fold_aucs = []
 
     # Perform k-fold cross-validation
@@ -348,7 +348,7 @@ class BinaryPSO:
             progress_tracker = None
             prev_avg_fitness = 0
 
-        crossval_folds = MultipleFolds(input_data, 5)
+        crossval_folds = KFoldData(input_data, 5)
 
         for generation in range(n_generations):
             start_time = time.time()
@@ -435,7 +435,7 @@ class BinaryPSO:
 
     def evaluate_population(
         self,
-        crossval_folds: MultipleFolds, feature_names: list,
+        crossval_folds: KFoldData, feature_names: list,
         generation_nb: int, verbose: bool = False
     ):
         """Evaluate fitness for all particles in the population"""
