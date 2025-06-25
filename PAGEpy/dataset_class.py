@@ -3,6 +3,7 @@
 import fnmatch
 import os
 import pickle
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -25,11 +26,11 @@ class GeneExpressionDataset:
         barcodes_pattern: str = "*barcodes.txt",
         genes_pattern: str = "*genes.txt",
         metadata_pattern: str = "*infection_status.csv",
+        gene_selection: str = "",
         test_set_size=0.2,
         random_seed=1,
         hvg_count=1000,
         pval_cutoff=0.01,
-        gene_selection='HVG',
         pval_correction='bonferroni',
         features_out_filename: str = "feature_set.pkl",
         train_samples_out_filename: str = "train_samples.txt",
@@ -58,9 +59,9 @@ class GeneExpressionDataset:
         # Dataset parameters
         self.test_set_size = test_set_size
         self.random_seed = random_seed
+        self.gene_selection_method = gene_selection
         self.hvg_count = hvg_count
         self.pval_cutoff = pval_cutoff
-        self.gene_selection_method = gene_selection
         self.pval_correction = pval_correction
 
         # Load and prepare AnnData
@@ -71,12 +72,12 @@ class GeneExpressionDataset:
         self._encode_labels()
         self.train_mask, self.test_mask = self._split_train_test()
 
-        # Select features and scale data
+        # Select features
         self.selected_features = self._select_features()
 
-        # Initialize attributes for train-test splits and data
+        # Train-test splits and scale data
         self.scaler = None
-        self.x_train, self.x_test, self.y_train, self.y_test = self._prepare_scaled_data()
+        self.x_train, self.x_test, self.y_train, self.y_test = self.get_scaled_feature_subset()
 
     def _find_file(self, pattern: str) -> str:
         files = os.listdir(self.data_dir)
@@ -202,7 +203,12 @@ class GeneExpressionDataset:
                 adata_train, group=self.adata.obs['Status'][0], key='t-test',
                 pval_cutoff=self.pval_cutoff)['names']
             selected_features = sig_genes.to_list()
-
+        elif self.gene_selection_method == '':
+            print(
+                "No feature selection method specified, "
+                "setting '.selected_features' to '.genes_list' "
+                f"({len(self.genes_list)} features).")
+            return self.genes_list
         else:
             raise ValueError(
                 f"Invalid gene selection method: {self.gene_selection_method}. "
@@ -217,16 +223,19 @@ class GeneExpressionDataset:
 
         return selected_features
 
-    def _prepare_scaled_data(self):
+    def get_scaled_feature_subset(self, feature_subset: Optional[list] = None):
         """
         Prepares scaled data for training and testing, fitting scaler only on
         training data.
         Returns:
             x_train, x_test, y_train, y_test
         """
+        if not feature_subset:
+            feature_subset = self.selected_features
+
         # Extract training and test data for selected features
-        x_train = self.adata[self.train_mask, self.selected_features].X
-        x_test = self.adata[self.test_mask, self.selected_features].X
+        x_train = self.adata[self.train_mask, feature_subset].X
+        x_test = self.adata[self.test_mask, feature_subset].X
 
         # Convert to dense arrays if sparse
         if not isinstance(x_train, np.ndarray):
@@ -238,7 +247,7 @@ class GeneExpressionDataset:
         scaler = MinMaxScaler()
         x_train_scaled = scaler.fit_transform(x_train)
         x_test_scaled = scaler.transform(x_test)
-        self.scaler = scaler  # Store for later use
+        self.scaler = scaler  # Store for later use; TODO: maybe return instead of storing?
 
         # Store labels
         y_train = self.adata.obs.loc[self.train_mask, 'Label'].values

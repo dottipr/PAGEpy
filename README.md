@@ -332,7 +332,7 @@ PredAnnModel(
 - `report_frequency` (int, default=1): Frequency of logging model performance metrics.
 - `auc_threshold` (float, default=0.95): AUC threshold for early stopping.
 - `clipnorm` (float, default=2.0): Maximum gradient norm to prevent exploding gradients.
-- `simplify_categories` (bool, default=True): Whether to simplify data categories before training.
+- `simplify_categories` (bool, default=True): Whether to simplify data categories before training. (TODO: this is never used?!?-->removed from code)
 - `holdout_size` (float, default=0.5): Fraction of data withheld for training during each training epoch. Reduces the rate of dataset memorization.
 - `multiplier` (int, default=3): Scaling factor for the number of nodes in most layers of the neural network. Large values correspond to a wider network.
 - `auc_thresholds` (list, default=[0.6, 0.7, 0.8, 0.85, 0.88, 0.89, 0.90, 0.91, 0.92]): AUC values at which the learning rate is adjusted. The test AUC value is continuously monitored and the learning rate can change at each of these supplied thresholds in a manner corresponding to the key-value pairs within the `lr_dict`.

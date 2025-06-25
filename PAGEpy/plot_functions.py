@@ -5,13 +5,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from PAGEpy.format_data_class import GeneExpressionDataset
-from PAGEpy.models import SimpleNN
-
 
 def plot_model_history(
-    model: SimpleNN,
-    data: GeneExpressionDataset,
+    model_history: Dict[str, List[float]],
+    report_frequency: int,
+    y_train: list,
+    y_test: list,
     save_path: Union[str, Path, None] = None
 ) -> None:
     """
@@ -19,24 +18,24 @@ def plot_model_history(
 
     Args:
         model: Trained neural network model with history attributes
-        data: Data fold containing train and test sets and is used to 
+        y_train, y_test: Train and test set labels; only used to 
               calculate chance levels (# positive samples / # samples)
         save_path: Optional path to save the generated plots
     """
     # Print maximum metrics
-    print(f"Max train accuracy: {max(model.train_accuracy_list):.2f}")
-    print(f"Max train AUC: {max(model.train_auc_list):.2f}")
-    print(f"Max test accuracy: {max(model.test_accuracy_list):.2f}")
-    print(f"Max test AUC: {max(model.test_auc_list):.2f}")
+    print(f"Max train accuracy: {max(model_history['train_accuracy']):.2f}")
+    print(f"Max train AUC: {max(model_history['train_auc']):.2f}")
+    print(f"Max test accuracy: {max(model_history['test_accuracy']):.2f}")
+    print(f"Max test AUC: {max(model_history['test_auc']):.2f}")
 
     axs = plt.subplots(4, 1, figsize=(12, 8))[1]
 
-    epochs = np.arange(1, len(model.train_accuracy_list) +
-                       1) * model.report_frequency
+    epochs = np.arange(1, len(model_history['train_accuracy']) +
+                       1) * report_frequency
 
     # Plot train accuracy
-    train_chance = pd.Series(data.y_train).value_counts(normalize=True).max()
-    axs[0].plot(epochs, model.train_accuracy_list,
+    train_chance = pd.Series(y_train).value_counts(normalize=True).max()
+    axs[0].plot(epochs, model_history['train_accuracy'],
                 label='Training Accuracy', color='blue')
     axs[0].axhline(train_chance, color='black',
                    linestyle='--', label='Chance Level')
@@ -47,7 +46,7 @@ def plot_model_history(
     axs[0].grid()
 
     # Plot train auc
-    axs[1].plot(epochs, model.train_auc_list,
+    axs[1].plot(epochs, model_history['train_auc'],
                 label='Train AUC', color='blue')
     axs[1].set_title('Training set AUC over epochs')
     axs[1].set_xlabel('Epoch')
@@ -55,8 +54,8 @@ def plot_model_history(
     axs[1].grid()
 
     # Plot test accuracy
-    test_chance = pd.Series(data.y_test).value_counts(normalize=True).max()
-    axs[2].plot(epochs, model.test_accuracy_list,
+    test_chance = pd.Series(y_test).value_counts(normalize=True).max()
+    axs[2].plot(epochs, model_history['test_accuracy'],
                 label='Test Accuracy', color='orange')
     axs[2].axhline(test_chance, color='black',
                    linestyle='--', label='Chance Level')
@@ -67,7 +66,7 @@ def plot_model_history(
     axs[2].grid()
 
     # Plot test auc
-    axs[3].plot(epochs, model.test_auc_list,
+    axs[3].plot(epochs, model_history['test_auc'],
                 label='Test AUC', color='orange')
     axs[3].set_title('Test set AUC over epochs')
     axs[3].set_xlabel('Epoch')
