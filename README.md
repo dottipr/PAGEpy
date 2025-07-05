@@ -384,7 +384,7 @@ Performs feature selection using a Binary Particle Swarm Optimization (PSO) algo
 - `C1` (float, optional, default=2): Cognitive coefficient influencing how much a particle follows its personal best position.
 - `C2` (float, optional, default=1.5): Social coefficient influencing how much a particle follows the global best position.
 - `reps` (int, optional, default=4): The number of times each feature set is evaluated to account for variability.
-- `frequent_reporting` (bool, optional, default=False): If True, logs intermediate results more frequently.
+- `verbose` (bool, optional, default=False): If True, logs intermediate results more frequently.
 - `adaptive_metrics` (bool, optional, default=False): If True, dynamically adjusts the `C1` and `C2` values based on observed performance trends. It will decrease `C1` and increase `C2` when the average population performance is increasing allowing exploitation to take over when a strong solution is found.
 
 **Returns**

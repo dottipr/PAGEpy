@@ -140,7 +140,7 @@ class SimpleNN:
             loss='binary_crossentropy',  # Standard loss for binary classification
             # metrics=['accuracy']
         )
-        print(f"Model created with {self.n_input_features} input features")
+        # print(f"Model created with {self.n_input_features} input features")
 
     @tf.function  # Compile for faster execution
     def _train_step(
@@ -364,7 +364,7 @@ class AdvancedNN(SimpleNN):
             loss='binary_crossentropy',
             # metrics=['accuracy']
         )
-        print(f"Model created with {self.n_input_features} input features")
+        # print(f"Model created with {self.n_input_features} input features")
 
     def _adjust_learning_rate_by_auc(self, epoch: int, test_auc: float) -> None:
         """Adjust learning rate based on AUC thresholds."""
