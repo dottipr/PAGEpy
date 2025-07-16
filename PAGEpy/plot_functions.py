@@ -1,9 +1,12 @@
+import logging
 from pathlib import Path
 from typing import Dict, List, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def plot_model_history(
@@ -23,10 +26,13 @@ def plot_model_history(
         save_path: Optional path to save the generated plots
     """
     # Print maximum metrics
-    print(f"Max train accuracy: {max(model_history['train_accuracy']):.2f}")
-    print(f"Max train AUC: {max(model_history['train_auc']):.2f}")
-    print(f"Max test accuracy: {max(model_history['test_accuracy']):.2f}")
-    print(f"Max test AUC: {max(model_history['test_auc']):.2f}")
+    logger.info(
+        "Max metrics\n\tTrain Accuracy: %.2f | Train AUC: %.2f | Test Accuracy: %.2f | Test AUC: %.2f",
+        max(model_history['train_accuracy']),
+        max(model_history['train_auc']),
+        max(model_history['test_accuracy']),
+        max(model_history['test_auc'])
+    )
 
     axs = plt.subplots(4, 1, figsize=(12, 8))[1]
 

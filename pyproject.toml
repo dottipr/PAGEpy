@@ -24,8 +24,11 @@ license-files = ["LICENSE"]
 dependencies = [
     "numpy==1.26.4",         
     "pandas==2.2.3",     
-    "scikit-learn>=1.0,<1.5", 
-    "tensorflow[and-cuda]==2.18.0",   
+    "scikit-learn>=1.0,<1.5",
+    'tensorflow[and-cuda]==2.18.0; sys_platform == "linux"',
+    'tensorflow==2.18.0; sys_platform == "darwin" and platform_machine != "arm64"',
+    'tensorflow-macos==2.16.2; sys_platform == "darwin" and platform_machine == "arm64"',
+    'tensorflow-metal==1.2.0; sys_platform == "darwin" and platform_machine == "arm64"',
     "scanpy>=1.9.1,<1.10",  
     "anndata>=0.8.0,<0.11", 
     "matplotlib>=3.4,<3.8", 

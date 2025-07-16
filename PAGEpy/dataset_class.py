@@ -1,6 +1,7 @@
 '''format the data for the neural network'''
 
 import fnmatch
+import logging
 import os
 import pickle
 from typing import Optional
@@ -11,6 +12,8 @@ import scanpy as sc
 from scipy.io import mmread
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+
+logger = logging.getLogger(__name__)
 
 
 class GeneExpressionDataset:
@@ -125,13 +128,14 @@ class GeneExpressionDataset:
             adata.var_names = pd.read_csv(
                 self.genes_path, header=None, sep="\t")[0].values
 
-            print("AnnData object successfully constructed.")
+            logger.info("AnnData object constructed with %d cells and %d genes.",
+                        adata.n_obs, adata.n_vars)
 
             # Normalize each cell by total counts (to 10,000 counts per cell)
             sc.pp.normalize_total(adata, target_sum=1e4)
             sc.pp.log1p(adata)
 
-            print('AnnData object counts are now normalized.')
+            logger.info('Counts normalized and log-transformed.')
 
         except Exception as e:
             raise ValueError(f"Failed to construct anndata object: {e}") from e
@@ -163,9 +167,10 @@ class GeneExpressionDataset:
         self.adata.obs.loc[self.adata.obs_names[train_indices],
                            'split'] = 'train'
 
-        print(
-            f"Training samples: {len(train_indices)}, "
-            f"Test samples: {len(test_indices)}")
+        logger.info(
+            "Split data: %d training samples, %d test samples.",
+            len(train_indices), len(test_indices),
+        )
 
         # Save training sample names
         with open(self.train_samples_out_fn, 'w', encoding='utf-8') as f:
@@ -204,18 +209,21 @@ class GeneExpressionDataset:
                 pval_cutoff=self.pval_cutoff)['names']
             selected_features = sig_genes.to_list()
         elif self.gene_selection_method == '':
-            print(
-                "No feature selection method specified, "
-                "setting '.selected_features' to '.genes_list' "
-                f"({len(self.genes_list)} features).")
+            logger.warning(
+                "No feature selection method specified. Using all %d genes.",
+                len(self.genes_list)
+            )
             return self.genes_list
         else:
+            logger.error("Invalid gene selection method: %s",
+                         self.gene_selection_method)
             raise ValueError(
                 f"Invalid gene selection method: {self.gene_selection_method}. "
                 "Choose 'HVG' or 'Diff'.")
-        print(
-            f"Selected {len(selected_features)} "
-            f"features using {self.gene_selection_method}")
+
+        logger.info(
+            "Selected %d features using %s",
+            len(selected_features), self.gene_selection_method)
 
         # Save selected genes/features
         with open(self.features_out_fn, "wb") as f:

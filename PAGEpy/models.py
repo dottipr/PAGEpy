@@ -1,3 +1,4 @@
+import logging
 import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
@@ -7,6 +8,8 @@ import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import mixed_precision
+
+logger = logging.getLogger(__name__)
 
 mixed_precision.set_global_policy('mixed_float16')
 
@@ -140,7 +143,8 @@ class SimpleNN:
             loss='binary_crossentropy',  # Standard loss for binary classification
             # metrics=['accuracy']
         )
-        # print(f"Model created with {self.n_input_features} input features")
+        logger.debug("Model created with %d input features",
+                     self.n_input_features)
 
     @tf.function  # Compile for faster execution
     def _train_step(
@@ -278,16 +282,17 @@ class SimpleNN:
 
                     # Print progress
                     if (1+epoch) % (self.config.report_frequency * 10) == 0:
-                        print(f'Epoch {1+epoch}/{n_epochs}:')
-                        print(
-                            f'\tTrain Loss: {train_loss:.4f}, AUC: {train_auc:.4f}, Acc: {train_acc:.4f}')
-                        print(
-                            f'\tTest AUC: {test_auc:.4f}, Acc: {test_acc:.4f}')
+                        logger.info(
+                            "Epoch %d/%d:\n\tTrain Loss: %.4f, AUC: %.4f, Acc: %.4f\n\tTest AUC: %.4f, Acc: %.4f",
+                            1+epoch, n_epochs, train_loss, train_auc, train_acc, test_auc, test_acc
+                        )
 
                     # Early stopping
                     if test_auc >= self.config.auc_threshold:
-                        print(
-                            f'Early stopping at epoch {epoch}: AUC threshold reached')
+                        logger.info(
+                            "Early stopping at epoch %d: AUC threshold (%.2f) reached",
+                            epoch, self.config.auc_threshold
+                        )
                         break
 
         return self.training_history
@@ -364,7 +369,8 @@ class AdvancedNN(SimpleNN):
             loss='binary_crossentropy',
             # metrics=['accuracy']
         )
-        # print(f"Model created with {self.n_input_features} input features")
+        logger.debug("Model created with %d input features",
+                     self.n_input_features)
 
     def _adjust_learning_rate_by_auc(self, epoch: int, test_auc: float) -> None:
         """Adjust learning rate based on AUC thresholds."""
@@ -380,7 +386,8 @@ class AdvancedNN(SimpleNN):
         # Set new learning rate if changed
         if not np.isclose(new_lr, current_lr):
             self.model.optimizer.learning_rate = new_lr
-            print(f"Epoch {epoch}: Adjusting learning rate to {new_lr:.6f}")
+            logger.info(
+                "Epoch %d: Adjusting learning rate to %.6f", epoch, new_lr)
 
         return test_auc
 
@@ -484,7 +491,8 @@ class AdvancedNN(SimpleNN):
                     self.training_history['test_auc'].append(test_auc)
                     self.training_history['test_accuracy'].append(test_acc)
                 else:
-                    print("Test data not provided, evaluating model on holdout data...")
+                    logger.warning(
+                        "Test data not provided, evaluating model on holdout data...")
                     test_auc, test_acc = self._evaluate_model(
                         x_holdout, y_holdout)
                     self.training_history['test_auc'].append(test_auc)
@@ -492,10 +500,10 @@ class AdvancedNN(SimpleNN):
 
                 # Print progress
                 if (1+epoch) % (self.config.report_frequency * 10) == 0:
-                    print(f'Epoch {1+epoch}/{n_epochs}:')
-                    print(
-                        f'\tTrain Loss: {train_loss:.4f}, AUC: {train_auc:.4f}, Acc: {train_acc:.4f}')
-                    print(f'\tTest AUC: {test_auc:.4f}, Acc: {test_acc:.4f}')
+                    logger.info(
+                        "Epoch %d/%d:\n\tTrain Loss: %.4f, AUC: %.4f, Acc: %.4f\n\tTest AUC: %.4f, Acc: %.4f",
+                        1+epoch, n_epochs, train_loss, train_auc, train_acc, test_auc, test_acc
+                    )
 
                 # Adjust learning rate based on test AUC
                 if hasattr(self.config, 'lr_schedule'):
@@ -503,8 +511,10 @@ class AdvancedNN(SimpleNN):
 
                 # Early stopping
                 if test_auc >= self.config.auc_threshold:
-                    print(
-                        f'Early stopping at epoch {epoch}: AUC threshold reached')
+                    logger.info(
+                        "Early stopping at epoch %d: AUC threshold (%.2f) reached",
+                        epoch, self.config.auc_threshold
+                    )
                     break
 
         return self.training_history

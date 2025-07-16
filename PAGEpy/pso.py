@@ -16,6 +16,7 @@ Main Components:
 - binary_pso: Main PSO execution function with adaptive parameter adjustment
 '''
 
+import logging
 import os
 import pickle
 import time
@@ -39,6 +40,7 @@ tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow info logs
 # Suppress CUDA warnings that are not critical
 warnings.filterwarnings('ignore', category=UserWarning, message='.*CUDA.*')
 
+logger = logging.getLogger(__name__)
 
 ######################### PSO ALGORITHM #########################
 
@@ -96,8 +98,6 @@ class ProgressTracker:  # TODO: refactor this!!
             1 - self.alpha) * self.ema_progress
         return self.ema_progress
 
-
-# NEW: PSO as a class
 
 class BinaryPSO:
     """
@@ -201,6 +201,8 @@ class BinaryPSO:
         crossval_folds = KFoldData(input_data, 5)
 
         for generation in range(n_generations):
+            logger.info("="*60)
+            logger.info("Generation %d started", generation + 1)
             start_time = time.time()
 
             # Evaluate fitness for all particles
@@ -242,11 +244,10 @@ class BinaryPSO:
 
             end_time = time.time()
 
-            print(f"Total time for generation {generation + 1}: "
-                  f"{round((end_time - start_time), 2)} seconds")
-            print(f"Generation {generation + 1}: Best AUC = {self.g_best_score:.4f}, "
-                  f"Avg = {avg_fitness:.4f}")
-            print()
+            logger.info(
+                "Generation %d summary: Best AUC: %.4f | Average AUC: %.4f | Duration: %.2fs",
+                generation + 1, self.g_best_score, avg_fitness, end_time - start_time
+            )
 
         return particle_history, fitness_score_history
 
@@ -339,11 +340,11 @@ class BinaryPSO:
         # Update smoothed progress estimate
         smoothed_progress = progress_tracker.update_progress(raw_progress)
 
-        print('Current smoothed progress:', round(smoothed_progress, 2))
+        logger.info("Current smoothed progress: %.2f", smoothed_progress)
 
         # If the progress is too small, do nothing
         if abs(smoothed_progress) < 0.05:
-            print("Progress too small, keeping C1 and C2 unchanged.")
+            logger.info("Progress too small, keeping C1 and C2 unchanged.")
             return
 
         if smoothed_progress > 0:
@@ -355,9 +356,10 @@ class BinaryPSO:
             self.c1 *= (1 + abs(smoothed_progress))  # Increase exploration
             self.c2 *= (1 - abs(smoothed_progress))  # Decrease exploitation
 
-        print('Values before normalization:')  # TO DO: remove this print??
-        print(self.c1)
-        print(self.c2)
+        logger.info(
+            "Values before normalization: c1=%.4f, c2=%.4f",
+            self.c1, self.c2
+        )
 
         # Constrain parameters to reasonable bounds to prevent instability
         self.c1 = min(max(self.c1, 0.5), 2.5)
@@ -398,7 +400,9 @@ def run_binary_pso(
     # Extract and save selected genes
     selected_genes = [gene for gene, selected in zip(
         feature_names, pso.g_best) if selected == 1]
-    print(f"Selected {len(selected_genes)} genes: {selected_genes}")
+    logger.info("Selected %d genes (top features)", len(selected_genes))
+    logger.debug("Selected genes: %s", ", ".join(
+        selected_genes) if selected_genes else "None")
 
     with open('pso_selected_genes.pkl', 'wb') as f:
         pickle.dump(selected_genes, f)
