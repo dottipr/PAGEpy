@@ -8,11 +8,8 @@ import numpy as np
 import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
-from tensorflow.keras import mixed_precision
 
 logger = logging.getLogger(__name__)
-
-mixed_precision.set_global_policy('mixed_float16')
 
 
 @dataclass

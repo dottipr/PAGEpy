@@ -25,7 +25,7 @@ def evaluate_selected_genes_fitness(
 ):
     """
     Evaluate the fitness of a gene selection (PSO particle) using
-    cross-validation.
+    a neural network model and cross-validation.
 
     This is the core fitness function for the PSO algorithm. It takes
     a binary vector representing which genes to select, trains neural
