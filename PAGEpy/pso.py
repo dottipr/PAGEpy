@@ -25,7 +25,6 @@ from typing import Callable
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import mixed_precision
 
 from PAGEpy.fitness_functions import evaluate_selected_genes_fitness
 from PAGEpy.k_folds_class import KFoldData

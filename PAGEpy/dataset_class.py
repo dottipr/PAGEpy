@@ -37,6 +37,7 @@ class GeneExpressionDataset:
         pval_correction='bonferroni',
         features_out_filename: str = "feature_set.pkl",
         train_samples_out_filename: str = "train_samples.txt",
+        positive_label: Optional[str] = None,
     ):
         """
         Initializes the GeneExpressionDataset class with specified parameters.
@@ -47,6 +48,7 @@ class GeneExpressionDataset:
         - random_seed (int): Seed for reproducible dataset splits (default: 1).
         - hvg_count (int): number of HVGs for selection
         - gene_selection (str): method of feature selection can either be 'HVG' or 'Diff'
+        - positive_label (Optional[str]): if given, this label will be encoded as 1
         """
 
         # Directory and file patterns
@@ -66,6 +68,7 @@ class GeneExpressionDataset:
         self.hvg_count = hvg_count
         self.pval_cutoff = pval_cutoff
         self.pval_correction = pval_correction
+        self.positive_label = positive_label
 
         # Load and prepare AnnData
         self.adata = self._load_and_normalize_data()
@@ -119,7 +122,6 @@ class GeneExpressionDataset:
             # observations are barcodes (data points):
             adata.obs_names = pd.read_csv(
                 self.barcodes_path, header=None, sep="\t")[0].values
-
             # Remove 'Sample' column from obs, as it's duplicated
             if 'Sample' in adata.obs.columns:
                 adata.obs.drop(columns=['Sample'], inplace=True)
@@ -128,7 +130,7 @@ class GeneExpressionDataset:
             adata.var_names = pd.read_csv(
                 self.genes_path, header=None, sep="\t")[0].values
 
-            logger.info("AnnData object constructed with %d cells and %d genes.",
+            logger.info("AnnData object constructed with %d samples and %d features (genes).",
                         adata.n_obs, adata.n_vars)
 
             # Normalize each cell by total counts (to 10,000 counts per cell)
@@ -146,9 +148,29 @@ class GeneExpressionDataset:
         """
         Encodes the target variable into numerical values.
         """
-        label_encoder = LabelEncoder()
-        self.adata.obs['Label'] = label_encoder.fit_transform(
-            self.adata.obs['Status'])
+        status_values = self.adata.obs['Status'].unique()
+        if len(status_values) != 2:
+            raise ValueError(
+                f"Expected exactly 2 unique Status values, got {len(status_values)}: {status_values}"
+            )
+
+        if self.positive_label is not None:
+            if self.positive_label not in status_values:
+                raise ValueError(
+                    f"positive_label '{self.positive_label}' not found in Status values: {status_values}"
+                )
+
+            # Map positive_label to 1, the other to 0
+            mapping = {self.positive_label: 1}
+            other_label = [x for x in status_values if x !=
+                           self.positive_label][0]
+            mapping[other_label] = 0
+            self.adata.obs['Label'] = self.adata.obs['Status'].map(mapping)
+        else:
+            # Default: use LabelEncoder
+            label_encoder = LabelEncoder()
+            self.adata.obs['Label'] = label_encoder.fit_transform(
+                self.adata.obs['Status'])
 
     def _split_train_test(self) -> tuple:
         """

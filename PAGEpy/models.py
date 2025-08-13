@@ -1,5 +1,6 @@
 import logging
 import math
+import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -60,6 +61,7 @@ def set_random_seed(seed: int = 42) -> None:
 
     TODO: random seeds are being set a bit all over the place -> fix this
     """
+    random.seed(seed)
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
