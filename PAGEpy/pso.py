@@ -20,7 +20,6 @@ import logging
 import os
 import pickle
 import time
-import warnings
 from typing import Callable
 
 import numpy as np
@@ -28,16 +27,6 @@ import tensorflow as tf
 
 from PAGEpy.fitness_functions import evaluate_selected_genes_fitness
 from PAGEpy.k_folds_class import KFoldData
-
-warnings.filterwarnings('ignore')  # Suppress all warnings for cleaner output
-
-# Suppress TensorFlow logging (set to ERROR level to hide INFO and WARNING messages)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['TF_DETERMINISTIC_OPS'] = '1'  # Ensure reproducible results
-tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow info logs
-
-# Suppress CUDA warnings that are not critical
-warnings.filterwarnings('ignore', category=UserWarning, message='.*CUDA.*')
 
 logger = logging.getLogger(__name__)
 

@@ -114,10 +114,22 @@ class GeneExpressionDataset:
             raise FileNotFoundError(f"Directory not found: {self.data_dir}")
 
         try:
+            logger.debug("tutto ok")
+            X_temp = mmread(self.counts_path)
+            logger.debug("tutto ok")
+            X_temp = X_temp.tocsc()
+            logger.debug("tutto ok")
+            X_temp = X_temp.T
+            logger.debug("tutto ok")
+            obs_temp = pd.read_csv(self.metadata_path)
+            logger.debug("tutto ok")
+            
             adata = sc.AnnData(
                 X=mmread(self.counts_path).tocsc().T,
                 obs=pd.read_csv(self.metadata_path),  # dataframe
             )
+            
+            logger.debug("tutto ok")
 
             # observations are barcodes (data points):
             adata.obs_names = pd.read_csv(
