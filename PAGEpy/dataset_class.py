@@ -114,22 +114,10 @@ class GeneExpressionDataset:
             raise FileNotFoundError(f"Directory not found: {self.data_dir}")
 
         try:
-            logger.debug("tutto ok")
-            X_temp = mmread(self.counts_path)
-            logger.debug("tutto ok")
-            X_temp = X_temp.tocsc()
-            logger.debug("tutto ok")
-            X_temp = X_temp.T
-            logger.debug("tutto ok")
-            obs_temp = pd.read_csv(self.metadata_path)
-            logger.debug("tutto ok")
-            
             adata = sc.AnnData(
                 X=mmread(self.counts_path).tocsc().T,
                 obs=pd.read_csv(self.metadata_path),  # dataframe
             )
-            
-            logger.debug("tutto ok")
 
             # observations are barcodes (data points):
             adata.obs_names = pd.read_csv(
@@ -239,7 +227,7 @@ class GeneExpressionDataset:
                 adata_train, groupby='Status', method='t-test',
                 key_added="t-test", corr_method=self.pval_correction)
             sig_genes = sc.get.rank_genes_groups_df(
-                adata_train, group=self.adata.obs['Status'][0], key='t-test',
+                adata_train, group=self.adata.obs['Status'].iloc[0], key='t-test',
                 pval_cutoff=self.pval_cutoff)['names']
             selected_features = sig_genes.to_list()
         elif self.gene_selection_method == '':
