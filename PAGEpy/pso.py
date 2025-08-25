@@ -361,10 +361,14 @@ class BinaryPSO:
 def run_binary_pso(
     input_data, feature_names: list, pop_size: int, n_generations: int,
     w: float = 1, c1: float = 2, c2: float = 2, n_reps: int = 4,
-    verbose: bool = False, adaptive_metrics: bool = False
+    verbose: bool = False, adaptive_metrics: bool = False,
+    output_prefix: str = "TEST"
 ):
     """
     Run binary Particle Swarm Optimization for feature selection.
+
+    Args:
+        output_prefix (str): Prefix for output files (default: "pso")
 
     Returns:
         tuple: (best_gene_vector, best_score)
@@ -392,13 +396,21 @@ def run_binary_pso(
     logger.debug("Selected genes: %s", ", ".join(
         selected_genes) if selected_genes else "None")
 
-    with open('pso_selected_genes.pkl', 'wb') as f:
+    with open(f'{output_prefix}pso_selected_genes.pkl', 'wb') as f:
         pickle.dump(selected_genes, f)
 
+    # Also save selected genes as a .txt file (one gene per line)
+    data_directory = output_prefix + "data"
+    if not os.path.exists(data_directory):
+        os.makedirs(data_directory)
+    with open(os.path.join(data_directory, 'selected_genes.txt'), 'w', encoding='utf-8') as txt_f:
+        for gene in selected_genes:
+            txt_f.write(f"{gene}\n")
+
     # Save results (history)
-    with open("pso_particle_history.pkl", "wb") as f:
+    with open(f"{output_prefix}pso_particle_history.pkl", "wb") as f:
         pickle.dump(particle_history, f)
-    with open("pso_fitness_scores.pkl", "wb") as f:
+    with open(f"{output_prefix}pso_fitness_scores.pkl", "wb") as f:
         pickle.dump(fitness_score_history, f)
 
     return pso.g_best, pso.g_best_score

@@ -2,8 +2,11 @@
 # coding: utf-8
 
 """
-Single Cell Analysis Script
-Converted from Jupyter notebook for server execution
+Bulk Analysis Script
+Copied from single cell data script
+Converted from Jupyter notebook for server executions
+
+Last updated: 25.08.2025
 """
 
 import os
@@ -20,16 +23,16 @@ from PAGEpy.models import AdvancedNN, SimpleNN, TrainingConfig
 
 
 def main():
-    """Main function to run the single cell analysis pipeline."""
+    """Main function to run the bulk analysis pipeline."""
 
-    print("Starting Single Cell Analysis Pipeline...")
+    print("Starting Bulk Analysis Pipeline...")
     print("=" * 50)
 
     matplotlib.use('Agg')
 
     # Configure output filenames
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = "single_cell"
+    output_dir = "bulk_output"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     output_prefix = os.path.join(output_dir, f"{timestamp}_")
@@ -43,22 +46,22 @@ def main():
     gpu_available = utils.init_tensorflow()
 
     # Dataset parameters
-    n_hvg_input_features = 2000
 
-    print(f"\nCreating dataset with {n_hvg_input_features} HVG features...")
+    print("\nCreating dataset with Differential gene expression method (?)...")
 
     # Create Dataset
     current_data = GeneExpressionDataset(
-        data_dir="../../HIVdata/",
-        counts_pattern="*counts.mtx",
-        barcodes_pattern="*barcodes.txt",
-        genes_pattern="*genes.txt",
-        metadata_pattern="*infection_status.csv",
-        gene_selection="HVG",
+        data_dir="../../bulk_data/",
+        counts_pattern="count_matrix.mtx",
+        barcodes_pattern="sample_names.txt",
+        genes_pattern="gene_names.txt",
+        metadata_pattern="response_labels.csv",
+        gene_selection="Diff",
+        pval_cutoff=0.00005,
         pval_correction="benjamini-hochberg",
-        hvg_count=n_hvg_input_features,
         features_out_filename=output_prefix + "feature_set.pkl",
         train_samples_out_filename=output_prefix + "train_samples.txt",
+        positive_label="yes"
     )
 
     # Load selected genes
@@ -76,7 +79,7 @@ def main():
 
     training_params = {
         'n_epochs': 500,
-        'batch_size': 512,
+        'batch_size': 64,
         'seed': 42,
     }
 
@@ -85,7 +88,7 @@ def main():
 
     # Initialize and train initial NN model
     initial_model = AdvancedNN(
-        n_input_features=n_hvg_input_features,
+        n_input_features=len(current_genes),
         config=config,
     )
 
@@ -108,7 +111,8 @@ def main():
         y_train=current_data.y_train,
         y_test=current_data.y_test,
         save_path=output_prefix + "initial_model_history.png",
-        data_save_path=os.path.join(data_directory, "training_metrics.csv")
+        data_save_path=os.path.join(
+            data_directory, "initial_training_metrics.csv")
     )
 
     # Run binary PSO
@@ -116,15 +120,15 @@ def main():
     print("This may take a while...\n")
 
     pso_params = {
-        'pop_size': 200,
-        # 'pop_size': 5,
-        'n_generations': 15,
-        # 'n_generations': 2,
+        # 'pop_size': 200,
+        'pop_size': 5,
+        # 'n_generations': 15,
+        'n_generations': 2,
         'w': 1,
         'c1': 2,
         'c2': 1.5,
-        'n_reps': 4,
-        # 'n_reps': 1,
+        # 'n_reps': 4,
+        'n_reps': 1,
         'verbose': True,
         'adaptive_metrics': False,
         'output_prefix': output_prefix
@@ -226,8 +230,7 @@ def main():
     print("=" * 50)
 
     # Print summary
-    print("\nSINGLE CELL ANALYSIS SUMMARY:")
-    print(f"- Initial features: {n_hvg_input_features}")
+    print("\nBULK ANALYSIS SUMMARY:")
     print(f"- PSO selected features: {len(pso_genes)}")
     print(f"- Best PSO fitness: {best_fitness}")
     print(f"- GPU available: {gpu_available}")
@@ -240,7 +243,10 @@ def main():
     print(f"- {output_prefix}pso_selected_genes.pkl")
     print(f"- {output_prefix}initial_model_history.png")
     print(f"- {output_prefix}improved_model_history.png")
-    print("- PSO evolution plots")
+    print(f"- {output_prefix}_data/selected_genes.txt")
+    print(f"- {output_prefix}_data/initial_training_metrics.csv")
+    print(f"- {output_prefix}_data/improved_training_metrics.csv")
+    # print("- PSO evolution plots")
 
 
 if __name__ == "__main__":

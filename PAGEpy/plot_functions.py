@@ -14,16 +14,19 @@ def plot_model_history(
     report_frequency: int,
     y_train: list,
     y_test: list,
-    save_path: Union[str, Path, None] = None
+    save_path: Union[str, Path, None] = None,
+    data_save_path: Union[str, Path, None] = None
 ) -> None:
     """
     Plot model training and validation metrics over epochs.
+    Optionally save the values used for plotting to disk as a CSV.
 
     Args:
-        model: Trained neural network model with history attributes
-        y_train, y_test: Train and test set labels; only used to 
-              calculate chance levels (# positive samples / # samples)
+        model_history: Dict with lists of metrics per epoch
+        report_frequency: Frequency of reporting metrics
+        y_train, y_test: Train and test set labels (for chance level)
         save_path: Optional path to save the generated plots
+        data_save_path: Optional path to save the plot data as CSV
     """
     # Print maximum metrics
     logger.info(
@@ -36,11 +39,27 @@ def plot_model_history(
 
     axs = plt.subplots(4, 1, figsize=(12, 8))[1]
 
-    epochs = np.arange(1, len(model_history['train_accuracy']) +
-                       1) * report_frequency
+    epochs = np.arange(
+        1, len(model_history['train_accuracy']) + 1) * report_frequency
+
+    # Prepare data for saving
+    plot_data = pd.DataFrame({
+        'epoch': epochs,
+        'train_accuracy': model_history['train_accuracy'],
+        'train_auc': model_history['train_auc'],
+        'test_accuracy': model_history['test_accuracy'],
+        'test_auc': model_history['test_auc'],
+    })
+    plot_data['train_chance'] = pd.Series(
+        y_train).value_counts(normalize=True).max()
+    plot_data['test_chance'] = pd.Series(
+        y_test).value_counts(normalize=True).max()
+
+    if data_save_path:
+        plot_data.to_csv(data_save_path, index=False)
 
     # Plot train accuracy
-    train_chance = pd.Series(y_train).value_counts(normalize=True).max()
+    train_chance = plot_data['train_chance'][0]
     axs[0].plot(epochs, model_history['train_accuracy'],
                 label='Training Accuracy', color='blue')
     axs[0].axhline(train_chance, color='black',
@@ -60,7 +79,7 @@ def plot_model_history(
     axs[1].grid()
 
     # Plot test accuracy
-    test_chance = pd.Series(y_test).value_counts(normalize=True).max()
+    test_chance = plot_data['test_chance'][0]
     axs[2].plot(epochs, model_history['test_accuracy'],
                 label='Test Accuracy', color='orange')
     axs[2].axhline(test_chance, color='black',

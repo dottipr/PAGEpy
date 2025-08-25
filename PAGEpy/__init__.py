@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 import warnings
 
 # 1. ENVIRONMENT SETUP (before TF import/use)
@@ -12,6 +12,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='.*CUDA.*')
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 logging.getLogger("h5py").setLevel(logging.WARNING)
+
 
 class MyFormatter(logging.Formatter):
     debug_format = "\033[36m%(asctime)s [%(pathname)s:%(lineno)d] [DEBUG]\033[0m %(message)s"
@@ -31,7 +32,8 @@ class MyFormatter(logging.Formatter):
 
 handler = logging.StreamHandler()
 handler.setFormatter(MyFormatter())
-logging.basicConfig(level=logging.DEBUG, handlers=[handler]) # <-- change this to show/hide debug logs
+# <-- change this to show/hide debug logs
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 
 
 # logger = logging.getLogger("PAGEpy")
