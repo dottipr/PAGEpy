@@ -11,6 +11,7 @@ build/lib/PAGEpy
 
 *.pyc
 *.pkl
+*.csv
 .DS_Store
 .vscode/
 .python-version
@@ -18,6 +19,7 @@ train_samples.txt
 *ipynb_checkpoints*
 *.log
 *old_outputs*
-util_scripts/bulk_output/
-util_scripts/single_cell_output/
-
+example_notebooks/bulk_walkthrough_output/*
+example_notebooks/single_cell_walkthrough_output/*
+util_scripts/bulk_output/*
+util_scripts/single_cell_output/*

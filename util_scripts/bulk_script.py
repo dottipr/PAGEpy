@@ -3,10 +3,9 @@
 
 """
 Bulk Analysis Script
-Copied from single cell data script
 Converted from Jupyter notebook for server executions
 
-Last updated: 25.08.2025
+Last updated: 26.08.2025
 """
 
 import os
@@ -19,7 +18,7 @@ import pandas as pd
 
 from PAGEpy import plot_functions, pso, utils
 from PAGEpy.dataset_class import GeneExpressionDataset
-from PAGEpy.models import AdvancedNN, SimpleNN, TrainingConfig
+from PAGEpy.models import AdvancedNN, TrainingConfig
 
 
 def main():
@@ -31,11 +30,13 @@ def main():
     matplotlib.use('Agg')
 
     # Configure output filenames
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Can be set to a previously crashed run ID
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
     output_dir = "bulk_output"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    output_prefix = os.path.join(output_dir, f"{timestamp}_")
+    output_prefix = os.path.join(output_dir, f"{run_id}_")
 
     data_directory = output_prefix + "data"
     if not os.path.exists(data_directory):
@@ -47,7 +48,7 @@ def main():
 
     # Dataset parameters
 
-    print("\nCreating dataset with Differential gene expression method (?)...")
+    print("\nCreating dataset with Differential Expression Analysis...")
 
     # Create Dataset
     current_data = GeneExpressionDataset(
@@ -59,13 +60,17 @@ def main():
         gene_selection="Diff",
         pval_cutoff=0.00005,
         pval_correction="benjamini-hochberg",
-        features_out_filename=output_prefix + "feature_set.pkl",
-        train_samples_out_filename=output_prefix + "train_samples.txt",
+        features_out_filename=os.path.join(
+            data_directory, "feature_set.pkl"),
+        train_samples_out_filename=os.path.join(
+            data_directory, "train_samples.txt"),
         positive_label="yes"
     )
 
     # Load selected genes
-    genes_path = output_prefix + "feature_set.pkl"
+    genes_path = os.path.join(
+        data_directory, "feature_set.pkl")
+
     with open(genes_path, "rb") as f:
         current_genes = pickle.load(f)
     print(f"Loaded {len(current_genes)} genes")
@@ -110,7 +115,8 @@ def main():
         report_frequency=initial_model.config.report_frequency,
         y_train=current_data.y_train,
         y_test=current_data.y_test,
-        save_path=output_prefix + "initial_model_history.png",
+        save_path=os.path.join(
+            data_directory, "initial_model_history.png"),
         data_save_path=os.path.join(
             data_directory, "initial_training_metrics.csv")
     )
@@ -120,18 +126,18 @@ def main():
     print("This may take a while...\n")
 
     pso_params = {
-        # 'pop_size': 200,
-        'pop_size': 5,
-        # 'n_generations': 15,
-        'n_generations': 2,
+        'pop_size': 200,
+        # 'pop_size': 5,
+        'n_generations': 15,
+        # 'n_generations': 2,
         'w': 1,
         'c1': 2,
         'c2': 1.5,
-        # 'n_reps': 4,
-        'n_reps': 1,
+        'n_reps': 4,
+        # 'n_reps': 1,
         'verbose': True,
         'adaptive_metrics': False,
-        'output_prefix': output_prefix
+        'output_prefix': data_directory
     }
 
     print(f"PSO parameters: {pso_params}")
@@ -150,23 +156,20 @@ def main():
 
     try:
         loaded_fitness_scores = pd.read_pickle(
-            output_prefix + "pso_fitness_scores.pkl")
+            os.path.join(data_directory, "pso_fitness_scores.pkl"))
         loaded_particle_history = pd.read_pickle(
-            output_prefix + "pso_particle_history.pkl")
+            os.path.join(data_directory, "pso_particle_history.pkl"))
 
         # Generate PSO plots
         plot_functions.plot_pso_fitness_evolution(
             fitness_history=loaded_fitness_scores,
-            save_path=output_prefix + "pso_fitness_evolution.png"
-        )
+            save_path=os.path.join(data_directory, "pso_fitness_evolution.png"))
         plot_functions.plot_population_diversity(
             particle_history=loaded_particle_history,
-            save_path=output_prefix + "pso_population_diversity.png"
-        )
+            save_path=os.path.join(data_directory, "pso_population_diversity.png"))
         plot_functions.plot_feature_selection_frequency(
             particle_history=loaded_particle_history,
-            save_path=output_prefix + "pso_feature_selection_frequency.png"
-        )
+            save_path=os.path.join(data_directory, "pso_feature_selection_frequency.png"))
 
         print("PSO plots generated successfully!")
 
@@ -177,7 +180,7 @@ def main():
     # Load PSO selected genes
     print("\nLoading PSO selected genes...")
     try:
-        with open(output_prefix + "pso_selected_genes.pkl", "rb") as f:
+        with open(os.path.join(data_directory, "pso_selected_genes.pkl"), "rb") as f:
             pso_genes = pickle.load(f)
     except FileNotFoundError:
         print("PSO genes file not found, extracting from best_solution...")
@@ -221,7 +224,8 @@ def main():
         report_frequency=improved_model.config.report_frequency,
         y_train=y_train,
         y_test=y_test,
-        save_path=output_prefix + "improved_model_history.png",
+        save_path=os.path.join(
+            data_directory, "improved_model_history.png"),
         data_save_path=os.path.join(
             data_directory, "improved_training_metrics.csv")
     )
@@ -235,18 +239,17 @@ def main():
     print(f"- Best PSO fitness: {best_fitness}")
     print(f"- GPU available: {gpu_available}")
 
-    print("\nGenerated files:")
-    print(f"- {output_prefix}feature_set.pkl")
-    print(f"- {output_prefix}train_samples.txt")
-    print(f"- {output_prefix}pso_fitness_scores.pkl")
-    print(f"- {output_prefix}pso_particle_history.pkl")
-    print(f"- {output_prefix}pso_selected_genes.pkl")
-    print(f"- {output_prefix}initial_model_history.png")
-    print(f"- {output_prefix}improved_model_history.png")
-    print(f"- {output_prefix}_data/selected_genes.txt")
-    print(f"- {output_prefix}_data/initial_training_metrics.csv")
-    print(f"- {output_prefix}_data/improved_training_metrics.csv")
-    # print("- PSO evolution plots")
+    print(f"\nGenerated files in '{data_directory}':")
+    print("- feature_set.pkl")
+    print("- train_samples.txt")
+    print("- pso_fitness_scores.pkl")
+    print("- pso_particle_history.pkl")
+    print("- pso_selected_genes.pkl")
+    print("- initial_model_history.png")
+    print("- improved_model_history.png")
+    print("- selected_genes.txt")
+    print("- initial_training_metrics.csv")
+    print("- improved_training_metrics.csv")
 
 
 if __name__ == "__main__":

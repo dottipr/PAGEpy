@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -26,7 +27,6 @@ def plot_model_history(
         report_frequency: Frequency of reporting metrics
         y_train, y_test: Train and test set labels (for chance level)
         save_path: Optional path to save the generated plots
-        data_save_path: Optional path to save the plot data as CSV
     """
     # Print maximum metrics
     logger.info(
