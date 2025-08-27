@@ -16,7 +16,6 @@ Main Components:
 - binary_pso: Main PSO execution function with adaptive parameter adjustment
 '''
 
-import logging
 import os
 import pickle
 import time
@@ -25,10 +24,11 @@ from typing import Callable, Dict, Optional, Tuple
 
 import numpy as np
 
+from PAGEpy import get_logger
 from PAGEpy.fitness_functions import evaluate_selected_genes_fitness
 from PAGEpy.k_folds_class import KFoldData
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 ######################### PSO ALGORITHM #########################
 

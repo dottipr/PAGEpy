@@ -1,7 +1,6 @@
 '''format the data for the neural network'''
 
 import fnmatch
-import logging
 import os
 import pickle
 from typing import Optional
@@ -13,7 +12,9 @@ from scipy.io import mmread
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
-logger = logging.getLogger(__name__)
+from PAGEpy import get_logger
+
+logger = get_logger(__name__)
 
 
 class GeneExpressionDataset:

@@ -1,5 +1,3 @@
-import logging
-import os
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -7,7 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger(__name__)
+from PAGEpy import get_logger
+
+logger = get_logger(__name__)
 
 
 def plot_model_history(

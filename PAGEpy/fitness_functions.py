@@ -1,12 +1,12 @@
-import logging
 import time
 
 import numpy as np
 
+from PAGEpy import get_logger
 from PAGEpy.k_folds_class import KFoldData
 from PAGEpy.models import SimpleNN, TrainingConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # TODO: adattare alla nuova implementazione dei K folds!!
 # TODO: vedere com'è meglio gestire i kwargs (o simile) per la fitness fct!!

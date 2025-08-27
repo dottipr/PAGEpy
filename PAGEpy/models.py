@@ -1,4 +1,3 @@
-import logging
 import math
 import random
 from dataclasses import dataclass, field
@@ -9,7 +8,9 @@ import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 
-logger = logging.getLogger(__name__)
+from PAGEpy import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

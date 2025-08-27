@@ -1,9 +1,12 @@
-import logging
 import os
 import platform
 
 import tensorflow as tf
 from tensorflow.keras import mixed_precision
+
+from PAGEpy import get_logger
+
+logger = get_logger(__name__)
 
 
 def init_tensorflow():
@@ -11,8 +14,6 @@ def init_tensorflow():
     Comprehensive TensorFlow initialization with GPU memory management
     and performance optimizations for both CUDA (Linux/Windows) and Metal (macOS).
     """
-    logger = logging.getLogger(__name__)
-
     # Detect platform
     is_macos = platform.system() == 'Darwin'
     is_apple_silicon = is_macos and platform.machine() == 'arm64'

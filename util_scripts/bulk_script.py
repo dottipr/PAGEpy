@@ -5,9 +5,10 @@
 Bulk Analysis Script
 Converted from Jupyter notebook for server executions
 
-Last updated: 26.08.2025
+Last updated: 27.08.2025
 """
 
+import logging
 import os
 import pickle
 import sys
@@ -16,39 +17,44 @@ from datetime import datetime
 import matplotlib
 import pandas as pd
 
-from PAGEpy import plot_functions, pso, utils
+from PAGEpy import get_logger, plot_functions, pso, setup_logging, utils
 from PAGEpy.dataset_class import GeneExpressionDataset
 from PAGEpy.models import AdvancedNN, TrainingConfig
+
+setup_logging(
+    level=logging.INFO,
+    log_file="bulk_script_output.log",
+    console_output=True
+)
+logger = get_logger(__name__)
 
 
 def main():
     """Main function to run the bulk analysis pipeline."""
 
-    print("Starting Bulk Analysis Pipeline...")
-    print("=" * 50)
+    # Set run ID (Can be set to a previously crashed run ID)
+    run_id = datetime.now().strftime("%y%m%d_%H%M%S")
+    logger.info("Starting Bulk Analysis Pipeline for Run ID '%s'...", run_id)
+    logger.info("=" * 50)
 
     matplotlib.use('Agg')
 
     # Configure output filenames
-    # Can be set to a previously crashed run ID
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-
     output_dir = "bulk_output"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    output_prefix = os.path.join(output_dir, f"{run_id}_")
 
-    data_directory = output_prefix + "data"
+    data_directory = os.path.join(output_dir, f"{run_id}_data")
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
 
     # Initialize CUDA for GPU support
-    print("Initializing CUDA...")
+    logger.info("Initializing CUDA...")
     gpu_available = utils.init_tensorflow()
 
     # Dataset parameters
 
-    print("\nCreating dataset with Differential Expression Analysis...")
+    logger.info("Creating dataset with Differential Expression Analysis...")
 
     # Create Dataset
     current_data = GeneExpressionDataset(
@@ -73,7 +79,7 @@ def main():
 
     with open(genes_path, "rb") as f:
         current_genes = pickle.load(f)
-    print(f"Loaded {len(current_genes)} genes")
+    logger.info("Loaded %d genes", len(current_genes))
 
     # Set NN model parameters
     config = TrainingConfig(
@@ -88,8 +94,8 @@ def main():
         'seed': 42,
     }
 
-    print("\nTraining initial NN model...")
-    print(f"Training parameters: {training_params}")
+    logger.info("Training initial NN model...")
+    logger.info("Training parameters: %s", training_params)
 
     # Initialize and train initial NN model
     initial_model = AdvancedNN(
@@ -106,10 +112,10 @@ def main():
         **training_params,
     )
 
-    print("Initial model training completed!")
+    logger.info("Initial model training completed!")
 
     # Plot initial model history
-    print("Plotting initial model history...")
+    logger.info("Plotting initial model history...")
     plot_functions.plot_model_history(
         model_history=train_history,
         report_frequency=initial_model.config.report_frequency,
@@ -122,8 +128,8 @@ def main():
     )
 
     # Run binary PSO
-    print("\nStarting binary PSO optimization...")
-    print("This may take a while...\n")
+    logger.info("Starting binary PSO optimization...")
+    logger.info("This may take a while...")
 
     pso_params = {
         'pop_size': 200,
@@ -140,19 +146,20 @@ def main():
         'output_prefix': data_directory
     }
 
-    print(f"PSO parameters: {pso_params}")
+    logger.info("PSO parameters: %s", pso_params)
 
     best_solution, best_fitness = pso.run_binary_pso(
+        run_id=run_id,
         input_data=current_data,
         feature_names=current_genes,
         **pso_params
     )
 
-    print("PSO optimization completed!")
-    print(f"Best fitness: {best_fitness}")
+    logger.info("PSO optimization completed!")
+    logger.info("Best fitness: %s", best_fitness)
 
     # Load and plot PSO results
-    print("\nLoading PSO results and generating plots...")
+    logger.info("Loading PSO results and generating plots...")
 
     try:
         loaded_fitness_scores = pd.read_pickle(
@@ -171,30 +178,31 @@ def main():
             particle_history=loaded_particle_history,
             save_path=os.path.join(data_directory, "pso_feature_selection_frequency.png"))
 
-        print("PSO plots generated successfully!")
+        logger.info("PSO plots generated successfully!")
 
     except FileNotFoundError as e:
-        print(f"Warning: Could not load PSO results files: {e}")
-        print("Proceeding with best_solution from PSO run...")
+        logger.warning("Warning: Could not load PSO results files: %s", e)
+        logger.warning("Proceeding with best_solution from PSO run...")
 
     # Load PSO selected genes
-    print("\nLoading PSO selected genes...")
+    logger.info("Loading PSO selected genes...")
     try:
         with open(os.path.join(data_directory, "pso_selected_genes.pkl"), "rb") as f:
             pso_genes = pickle.load(f)
     except FileNotFoundError:
-        print("PSO genes file not found, extracting from best_solution...")
+        logger.warning(
+            "PSO genes file not found, extracting from best_solution...")
         pso_genes = [item for item, m in zip(
             current_genes, best_solution) if m == 1]
         # Save for future use
-        with open(output_prefix + "pso_selected_genes.pkl", "wb") as f:
+        with open(os.path.join(data_directory, "pso_selected_genes.pkl"), "wb") as f:
             pickle.dump(pso_genes, f)
 
     n_pso_input_features = len(pso_genes)
-    print(f"Number of PSO selected genes: {n_pso_input_features}")
+    logger.info("Number of PSO selected genes: %d", n_pso_input_features)
 
     # Train improved model with PSO selected features
-    print("\nTraining improved model with PSO selected features...")
+    logger.info("Training improved model with PSO selected features...")
 
     improved_model = AdvancedNN(
         n_input_features=n_pso_input_features,
@@ -215,10 +223,10 @@ def main():
         **training_params,
     )
 
-    print("Improved model training completed!")
+    logger.info("Improved model training completed!")
 
     # Plot improved model history
-    print("Plotting improved model history...")
+    logger.info("Plotting improved model history...")
     plot_functions.plot_model_history(
         model_history=improved_train_history,
         report_frequency=improved_model.config.report_frequency,
@@ -230,36 +238,36 @@ def main():
             data_directory, "improved_training_metrics.csv")
     )
 
-    print("\nAnalysis pipeline completed successfully!")
-    print("=" * 50)
+    logger.info("Analysis pipeline completed successfully!")
+    logger.info("=" * 50)
 
     # Print summary
-    print("\nBULK ANALYSIS SUMMARY:")
-    print(f"- PSO selected features: {len(pso_genes)}")
-    print(f"- Best PSO fitness: {best_fitness}")
-    print(f"- GPU available: {gpu_available}")
+    logger.info("BULK ANALYSIS SUMMARY:")
+    logger.info("- PSO selected features: %d", len(pso_genes))
+    logger.info("- Best PSO fitness: %s", best_fitness)
+    logger.info("- GPU available: %s", gpu_available)
 
-    print(f"\nGenerated files in '{data_directory}':")
-    print("- feature_set.pkl")
-    print("- train_samples.txt")
-    print("- pso_fitness_scores.pkl")
-    print("- pso_particle_history.pkl")
-    print("- pso_selected_genes.pkl")
-    print("- initial_model_history.png")
-    print("- improved_model_history.png")
-    print("- selected_genes.txt")
-    print("- initial_training_metrics.csv")
-    print("- improved_training_metrics.csv")
+    logger.info("Generated files in '%s':", data_directory)
+    logger.info("- feature_set.pkl")
+    logger.info("- train_samples.txt")
+    logger.info("- pso_fitness_scores.pkl")
+    logger.info("- pso_particle_history.pkl")
+    logger.info("- pso_selected_genes.pkl")
+    logger.info("- initial_model_history.png")
+    logger.info("- improved_model_history.png")
+    logger.info("- selected_genes.txt")
+    logger.info("- initial_training_metrics.csv")
+    logger.info("- improved_training_metrics.csv")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\nScript interrupted by user.")
+        logger.error("Script interrupted by user.")
         sys.exit(1)
     except Exception as e:
-        print(f"\nError occurred: {e}")
+        logger.error("Error occurred: %s", e)
         import traceback
         traceback.print_exc()
         sys.exit(1)
