@@ -2,8 +2,8 @@
 # coding: utf-8
 
 """
-Bulk Analysis Script
-Converted from Jupyter notebook for server executions
+Single Cell Analysis Script
+Converted from Jupyter notebook for server execution
 
 Last updated: 27.08.2025
 """
@@ -23,25 +23,25 @@ from PAGEpy.models import AdvancedNN, TrainingConfig
 
 setup_logging(
     level=logging.INFO,
-    log_file="bulk_script_output.log",
+    log_file="single_cell_analysis_output.log",
     console_output=True
 )
 logger = get_logger(__name__)
 
 
 def main():
-    """Main function to run the bulk analysis pipeline."""
-    
+    """Main function to run the single cell analysis pipeline."""
+
     # Set run ID (Can be set to a previously crashed run ID)
     run_id = datetime.now().strftime("%y%m%d_%H%M%S")
-    logger.info("Starting Bulk Analysis Pipeline for Run ID '%s'...", run_id)
+    logger.info(
+        "Starting Single Cell Analysis Pipeline for Run ID '%s'...", run_id)
     logger.info("=" * 50)
-
 
     matplotlib.use('Agg')
 
     # Configure output filenames
-    output_dir = "bulk_output"
+    output_dir = "single_cell_analysis_output"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -54,24 +54,25 @@ def main():
     gpu_available = utils.init_tensorflow()
 
     # Dataset parameters
+    n_hvg_input_features = 2000
 
-    logger.info("Creating dataset with Differential Expression Analysis...")
+    logger.info(
+        "\nCreating dataset with %d HVG features...", n_hvg_input_features)
 
     # Create Dataset
     current_data = GeneExpressionDataset(
-        data_dir="../../bulk_data/",
-        counts_pattern="count_matrix.mtx",
-        barcodes_pattern="sample_names.txt",
-        genes_pattern="gene_names.txt",
-        metadata_pattern="response_labels.csv",
-        gene_selection="Diff",
-        pval_cutoff=0.00005,
+        data_dir="../../HIVdata/",
+        counts_pattern="*counts.mtx",
+        barcodes_pattern="*barcodes.txt",
+        genes_pattern="*genes.txt",
+        metadata_pattern="*infection_status.csv",
+        gene_selection="HVG",
         pval_correction="benjamini-hochberg",
+        hvg_count=n_hvg_input_features,
         features_out_filename=os.path.join(
             data_directory, "feature_set.pkl"),
         train_samples_out_filename=os.path.join(
             data_directory, "train_samples.txt"),
-        positive_label="yes"
     )
 
     # Load selected genes
@@ -91,7 +92,7 @@ def main():
 
     training_params = {
         'n_epochs': 500,
-        'batch_size': 64,
+        'batch_size': 512,
         'seed': 42,
     }
 
@@ -100,7 +101,7 @@ def main():
 
     # Initialize and train initial NN model
     initial_model = AdvancedNN(
-        n_input_features=len(current_genes),
+        n_input_features=n_hvg_input_features,
         config=config,
     )
 
@@ -129,8 +130,8 @@ def main():
     )
 
     # Run binary PSO
-    logger.info("Starting binary PSO optimization...")
-    logger.info("This may take a while...")
+    logger.info("\nStarting binary PSO optimization...")
+    logger.info("This may take a while...\n")
 
     pso_params = {
         'pop_size': 200,
@@ -186,7 +187,7 @@ def main():
         logger.warning("Proceeding with best_solution from PSO run...")
 
     # Load PSO selected genes
-    logger.info("Loading PSO selected genes...")
+    logger.info("\nLoading PSO selected genes...")
     try:
         with open(os.path.join(data_directory, "pso_selected_genes.pkl"), "rb") as f:
             pso_genes = pickle.load(f)
@@ -239,11 +240,12 @@ def main():
             data_directory, "improved_training_metrics.csv")
     )
 
-    logger.info("Analysis pipeline completed successfully!")
+    logger.info("\nAnalysis pipeline completed successfully!")
     logger.info("=" * 50)
 
     # Print summary
-    logger.info("BULK ANALYSIS SUMMARY:")
+    logger.info("\nSINGLE CELL ANALYSIS SUMMARY:")
+    logger.info("- Initial features: %d", n_hvg_input_features)
     logger.info("- PSO selected features: %d", len(pso_genes))
     logger.info("- Best PSO fitness: %s", best_fitness)
     logger.info("- GPU available: %s", gpu_available)
@@ -265,7 +267,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        logger.error("Script interrupted by user.")
+        logger.error("\nScript interrupted by user.")
         sys.exit(1)
     except Exception as e:
         logger.error("Error occurred: %s", e)

@@ -35,7 +35,7 @@ class GeneExpressionDataset:
         random_seed=1,
         hvg_count=1000,
         pval_cutoff=0.01,
-        pval_correction='bonferroni',
+        pval_correction: str = 'bonferroni',
         features_out_filename: str = "feature_set.pkl",
         train_samples_out_filename: str = "train_samples.txt",
         positive_label: Optional[str] = None,
@@ -231,6 +231,7 @@ class GeneExpressionDataset:
                 adata_train, group=self.adata.obs['Status'].iloc[0], key='t-test',
                 pval_cutoff=self.pval_cutoff)['names']
             selected_features = sig_genes.to_list()
+
         elif self.gene_selection_method == '':
             logger.warning(
                 "No feature selection method specified. Using all %d genes.",

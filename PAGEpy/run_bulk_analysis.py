@@ -23,7 +23,7 @@ from PAGEpy.models import AdvancedNN, TrainingConfig
 
 setup_logging(
     level=logging.INFO,
-    log_file="bulk_script_output.log",
+    log_file="bulk_analysis_output.log",
     console_output=True
 )
 logger = get_logger(__name__)
@@ -40,7 +40,7 @@ def main():
     matplotlib.use('Agg')
 
     # Configure output filenames
-    output_dir = "bulk_output"
+    output_dir = "bulk_analysis_output"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
