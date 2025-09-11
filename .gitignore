@@ -21,5 +21,5 @@ train_samples.txt
 *old_outputs*
 example_notebooks/bulk_walkthrough_output/*
 example_notebooks/single_cell_walkthrough_output/*
-util_scripts/bulk_output/*
-util_scripts/single_cell_output/*
+bulk_analysis_output/*
+single_cell_analysis_output/*
