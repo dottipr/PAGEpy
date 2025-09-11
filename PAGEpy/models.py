@@ -1,3 +1,11 @@
+'''
+PSO algorithm's evaluation methods (e.g., random forrest, MLP, etc.) are defined
+in this module.
+
+Author: Prisca Dotti
+Last modified: 10.09.25
+'''
+
 import math
 import random
 from dataclasses import dataclass, field
@@ -42,7 +50,7 @@ class TrainingConfig:
     l2_reg: float = 0.2
     balance_classes: bool = True
     report_frequency: int = 1
-    auc_threshold: float = 1  # no early stopping; was: 0.95
+    auc_threshold: float = 1.0  # no early stopping; was: 0.95
     clipnorm: float = 2.0
     holdout_size: float = 0.5
     multiplier: int = 3

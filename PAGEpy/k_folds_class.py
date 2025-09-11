@@ -38,18 +38,9 @@ class KFoldData:
         train_idx, test_idx = self._splits[idx]
         return IndividualFold(self, train_idx, test_idx)
 
-    #     self.folds = []
-    #     self._generate_folds()
-
-    # def _generate_folds(self):
-    #     """
-    #     Splits the data into stratified K-folds.
-    #     """
-    #     skf = StratifiedKFold(n_splits=self.n_folds,
-    #                           shuffle=True, random_state=self.random_state)
-    #     for train_idx, test_idx in skf.split(self.x, self.y):
-    #         fold = IndividualFold(self, train_idx, test_idx)
-    #         self.folds.append(fold)
+    def __iter__(self):
+        for idx in range(self.n_folds):
+            yield self[idx]
 
 
 class IndividualFold:

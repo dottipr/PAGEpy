@@ -25,7 +25,7 @@ from typing import Callable, Dict, Optional, Tuple
 import numpy as np
 
 from PAGEpy import get_logger
-from PAGEpy.fitness_functions import evaluate_selected_genes_fitness
+from PAGEpy.fitness_functions import evaluate_particle_fitness
 from PAGEpy.k_folds_class import KFoldData
 
 logger = get_logger(__name__)
@@ -111,11 +111,43 @@ class BinaryPSO:
         current_generation (int): Current generation number
     """
 
+    # TODO: in realtà potrei magari instanziare il modello al di fuori
+    #       dell'evaluate_population ?? (così invece di passare model class +
+    #       model params, basta passare il modello già creato, anché perché non
+    #       è il compito di una PSO class creare un DL model!)
+
     def __init__(
-        self, run_id: str, pop_size, n_features, fitness_function: Callable,
-        w: float = 1, c1: float = 2, c2: float = 2, n_reps: int = 4,
+        self,
+        run_id: str,
+        pop_size: int,
+        n_features: int,
+        # TODO: devo davvero passarla? non dovrebbe essercene una generica?
+        fitness_function: Callable,
+        model_class,
+        hyperparams: Optional[dict] = None,
+        training_params: Optional[dict] = None,
+        w: float = 1,
+        c1: float = 2,
+        c2: float = 2,
+        n_reps: int = 4,
         checkpoint_dir: Optional[str] = None
     ):
+        """
+        Initialize Binary PSO with model configuration.
+
+        Args:
+            run_id: Unique identifier
+            pop_size: Population size  
+            n_features: Number of features
+            model_class: Model to use (RandomForestClassifier, SimpleNN, etc.)
+            hyperparams: Parameters for model initialization
+            training_params: Parameters for model training/fitting
+            fitness_function: Custom fitness function (uses evaluate_particle_fitness if None)
+            w, c1, c2: PSO parameters
+            n_reps: Number of fitness evaluation repetitions
+            checkpoint_dir: Checkpoint directory
+        """
+
         # PSO Algorithm Parameters
         self.run_id = run_id
         self.pop_size = pop_size
@@ -126,12 +158,20 @@ class BinaryPSO:
         self.c2 = c2  # Social parameter
         self.n_reps = n_reps  # Number of repetitions for fitness evaluation
 
+        # Model configuration
+        self.model_class = model_class
+        self.hyperparams = hyperparams or {}
+        self.training_params = training_params or {}
+
+        # Fitness function TODO: fitness_function arg can be removed
+        self.fitness_function = fitness_function or evaluate_particle_fitness
+
         # Checkpointing setup
         self.checkpoint_dir = checkpoint_dir or "pso_checkpoints"
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.current_generation = 0
 
-        # Initialize particle state variables (set during population initialization)
+        # PSO state
         self.population: Optional[np.ndarray] = None
         self.velocities: Optional[np.ndarray] = None
         self.p_best: Optional[np.ndarray] = None
@@ -139,7 +179,7 @@ class BinaryPSO:
         self.g_best: Optional[np.ndarray] = None
         self.g_best_score: Optional[float] = None
 
-        # Try to load from checkpoint first, otherwise initialize new population
+        # Initialize population or load from checkpoint
         if not self.load_checkpoint():
             self.initialize_population()
 
@@ -179,6 +219,141 @@ class BinaryPSO:
             np.ndarray: Probabilities in range [0, 1]
         """
         return 1 / (1 + np.exp(-alpha * x))
+
+    def update_positions(self):
+        """
+        Update particle positions based on current velocities.
+        (binary PSO position update rule)
+        """
+        if self.velocities is None:
+            raise ValueError(
+                "self.velocities must be initialized before updating velocities.")
+        if self.population is None:
+            raise ValueError(
+                "self.population must be initialized before updating positions.")
+
+        prob = self.sigmoid(self.velocities)  # Convert velocity to probability
+        self.population = (
+            np.random.rand(*self.population.shape) < prob
+        ).astype(int)
+
+    def update_velocities(self):
+        """
+        Update particle velocities using PSO velocity update equation.
+
+        Implements the standard PSO velocity update:
+        v = w*v + c1*r1*(p_best - position) + c2*r2*(g_best - position)
+
+        Where:
+        - w: inertia weight (maintains current direction)
+        - c1: cognitive parameter (attraction to personal best)
+        - c2: social parameter (attraction to global best)
+        - r1, r2: random factors for stochastic behavior
+        """
+        if self.population is None:
+            raise ValueError(
+                "self.population must be initialized before updating population.")
+        if self.velocities is None:
+            raise ValueError(
+                "self.velocities must be initialized before updating velocities.")
+
+        # scaling_factor = min(1.0, (gen + 1) / 3)  # Scale up after 3 generations # ???
+        r1 = np.random.rand(*self.population.shape)
+        r2 = np.random.rand(*self.population.shape)
+
+        self.velocities = (
+            self.w * self.velocities +
+            self.c1 * r1 * (self.p_best - self.population) +
+            self.c2 * r2 * (self.g_best - self.population)
+        )
+
+    def evaluate_population(
+        self,
+        kfolds: KFoldData, feature_names: list,
+        generation_nb: int, verbose: bool = False,
+    ):
+        """Evaluate fitness for all particles in the population"""
+
+        if self.population is None:
+            raise ValueError(
+                "self.population must be initialized before evaluating fitness.")
+
+        fitness_scores = np.array([
+            np.mean([
+                self.fitness_function(
+                    particle=particle,
+                    kfolds=kfolds,
+                    feature_names=feature_names,
+                    particle_id=particle_id,
+                    generation_nb=generation_nb,
+                    loud=verbose,
+                ) for _ in range(self.n_reps)
+            ])
+            for particle_id, particle in enumerate(self.population)
+        ])
+
+        return fitness_scores
+
+    def progress_based_adjustment(
+        self, avg_fitness, prev_avg_fitness, progress_tracker, epsilon=1e-6
+    ):
+        """
+        Dynamically adjust PSO parameters C1 and C2 based on optimization progress.
+
+        This adaptive mechanism modifies the balance between exploration (C1) and
+        exploitation (C2) based on whether the population is improving or stagnating:
+        - If improving: Increase exploitation (C2), decrease exploration (C1)
+        - If stagnating: Increase exploration (C1), decrease exploitation (C2)
+
+        Args:
+            avg_fitness (float): Current population average fitness
+            prev_avg_fitness (float): Previous population average fitness
+            C1 (float): Current exploration weight (cognitive parameter)
+            C2 (float): Current exploitation weight (social parameter)
+            progress_tracker (ProgressTracker): Object tracking smoothed progress
+            epsilon (float): Small value to prevent division issues (default: 1e-6)
+
+        Returns:
+            tuple: (adjusted_C1, adjusted_C2) - New parameter values
+
+        The function uses exponentially smoothed progress to avoid overreacting
+        to single-generation fluctuations in fitness.
+        """
+        # Calculate raw progress as relative improvement
+        raw_progress = (avg_fitness - prev_avg_fitness) / (
+            epsilon + abs(prev_avg_fitness))
+
+        # Update smoothed progress estimate
+        smoothed_progress = progress_tracker.update_progress(raw_progress)
+
+        logger.info("Current smoothed progress: %.2f", smoothed_progress)
+
+        # If the progress is too small, do nothing
+        if abs(smoothed_progress) < 0.05:
+            logger.info("Progress too small, keeping C1 and C2 unchanged.")
+            return
+
+        if smoothed_progress > 0:
+            # Population is improving - exploit more, explore less
+            self.c1 *= (1 - smoothed_progress)  # Decrease exploration
+            self.c2 *= (1 + smoothed_progress)  # Increase exploitation
+        else:
+            # Population is stagnating - explore more, exploit less
+            self.c1 *= (1 + abs(smoothed_progress))  # Increase exploration
+            self.c2 *= (1 - abs(smoothed_progress))  # Decrease exploitation
+
+        logger.info(
+            "Values before normalization: c1=%.4f, c2=%.4f",
+            self.c1, self.c2
+        )
+
+        # Constrain parameters to reasonable bounds to prevent instability
+        self.c1 = min(max(self.c1, 0.5), 2.5)
+        self.c2 = min(max(self.c2, 0.5), 2.5)
+
+    def get_checkpoint_path(self) -> str:
+        """Get the checkpoint file path for this run."""
+        return os.path.join(self.checkpoint_dir, f"checkpoint_{self.run_id}.pkl")
 
     def optimize(
         self,
@@ -280,124 +455,6 @@ class BinaryPSO:
         self.delete_checkpoint()
 
         return particle_history, fitness_score_history
-
-    def update_positions(self):
-        """
-        Update particle positions based on current velocities.
-        (binary PSO position update rule)
-        """
-        prob = self.sigmoid(self.velocities)  # Convert velocity to probability
-        self.population = (
-            np.random.rand(*self.population.shape) < prob
-        ).astype(int)
-
-    def update_velocities(self):
-        """
-        Update particle velocities using PSO velocity update equation.
-
-        Implements the standard PSO velocity update:
-        v = w*v + c1*r1*(p_best - position) + c2*r2*(g_best - position)
-
-        Where:
-        - w: inertia weight (maintains current direction)
-        - c1: cognitive parameter (attraction to personal best)
-        - c2: social parameter (attraction to global best)
-        - r1, r2: random factors for stochastic behavior
-        """
-        # scaling_factor = min(1.0, (gen + 1) / 3)  # Scale up after 3 generations # ???
-        r1 = np.random.rand(*self.population.shape)
-        r2 = np.random.rand(*self.population.shape)
-
-        self.velocities = (
-            self.w * self.velocities +
-            self.c1 * r1 * (self.p_best - self.population) +
-            self.c2 * r2 * (self.g_best - self.population)
-        )
-
-    def evaluate_population(
-        self,
-        kfolds: KFoldData, feature_names: list,
-        generation_nb: int, verbose: bool = False,
-        **fitness_kwargs  # TODO: Accept additional keyword arguments
-    ):
-        """Evaluate fitness for all particles in the population"""
-
-        fitness_scores = np.array([
-            np.mean([
-                self.fitness_function(
-                    particle=particle,
-                    kfolds=kfolds,
-                    feature_names=feature_names,
-                    particle_id=particle_id,
-                    generation_nb=generation_nb,
-                    loud=verbose,
-                ) for _ in range(self.n_reps)
-            ])
-            for particle_id, particle in enumerate(self.population)
-        ])
-
-        return fitness_scores
-
-    def progress_based_adjustment(
-        self, avg_fitness, prev_avg_fitness, progress_tracker, epsilon=1e-6
-    ):
-        """
-        Dynamically adjust PSO parameters C1 and C2 based on optimization progress.
-
-        This adaptive mechanism modifies the balance between exploration (C1) and
-        exploitation (C2) based on whether the population is improving or stagnating:
-        - If improving: Increase exploitation (C2), decrease exploration (C1)
-        - If stagnating: Increase exploration (C1), decrease exploitation (C2)
-
-        Args:
-            avg_fitness (float): Current population average fitness
-            prev_avg_fitness (float): Previous population average fitness
-            C1 (float): Current exploration weight (cognitive parameter)
-            C2 (float): Current exploitation weight (social parameter)
-            progress_tracker (ProgressTracker): Object tracking smoothed progress
-            epsilon (float): Small value to prevent division issues (default: 1e-6)
-
-        Returns:
-            tuple: (adjusted_C1, adjusted_C2) - New parameter values
-
-        The function uses exponentially smoothed progress to avoid overreacting
-        to single-generation fluctuations in fitness.
-        """
-        # Calculate raw progress as relative improvement
-        raw_progress = (avg_fitness - prev_avg_fitness) / (
-            epsilon + abs(prev_avg_fitness))
-
-        # Update smoothed progress estimate
-        smoothed_progress = progress_tracker.update_progress(raw_progress)
-
-        logger.info("Current smoothed progress: %.2f", smoothed_progress)
-
-        # If the progress is too small, do nothing
-        if abs(smoothed_progress) < 0.05:
-            logger.info("Progress too small, keeping C1 and C2 unchanged.")
-            return
-
-        if smoothed_progress > 0:
-            # Population is improving - exploit more, explore less
-            self.c1 *= (1 - smoothed_progress)  # Decrease exploration
-            self.c2 *= (1 + smoothed_progress)  # Increase exploitation
-        else:
-            # Population is stagnating - explore more, exploit less
-            self.c1 *= (1 + abs(smoothed_progress))  # Increase exploration
-            self.c2 *= (1 - abs(smoothed_progress))  # Decrease exploitation
-
-        logger.info(
-            "Values before normalization: c1=%.4f, c2=%.4f",
-            self.c1, self.c2
-        )
-
-        # Constrain parameters to reasonable bounds to prevent instability
-        self.c1 = min(max(self.c1, 0.5), 2.5)
-        self.c2 = min(max(self.c2, 0.5), 2.5)
-
-    def get_checkpoint_path(self) -> str:
-        """Get the checkpoint file path for this run."""
-        return os.path.join(self.checkpoint_dir, f"checkpoint_{self.run_id}.pkl")
 
     def save_checkpoint(
         self, generation: int, particle_history: Dict, fitness_score_history: list
@@ -549,7 +606,7 @@ def run_binary_pso(
         run_id=run_id,
         pop_size=pop_size,
         n_features=len(feature_names),
-        fitness_function=evaluate_selected_genes_fitness,
+        fitness_function=evaluate_particle_fitness,
         w=w, c1=c1, c2=c2, n_reps=n_reps,
         checkpoint_dir=checkpoint_dir)
 
