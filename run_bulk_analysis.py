@@ -32,8 +32,10 @@ logger = get_logger(__name__)
 def main():
     """Main function to run the bulk analysis pipeline."""
 
-    # Set run ID (Can be set to a previously crashed run ID)
-    run_id = datetime.now().strftime("%y%m%d_%H%M%S")
+    # Set run ID 
+    #run_id = datetime.now().strftime("%y%m%d_%H%M%S")
+    run_id = "250901_212046" # e.g., can be set to a previously crashed run ID
+    
     logger.info("Starting Bulk Analysis Pipeline for Run ID '%s'...", run_id)
     logger.info("=" * 50)
 
