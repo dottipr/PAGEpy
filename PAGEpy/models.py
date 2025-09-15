@@ -1,9 +1,9 @@
 '''
-PSO algorithm's evaluation methods (e.g., random forrest, MLP, etc.) are defined
-in this module.
+PSO algorithm's custom evaluation methods (e.g., random forrest, MLP, etc.) are
+defined in this module.
 
 Author: Prisca Dotti
-Last modified: 10.09.25
+Last modified: 15.09.25
 '''
 
 import math
@@ -22,10 +22,10 @@ logger = get_logger(__name__)
 
 
 @dataclass
-class TrainingConfig:
+class NNModelConfig:
     """
-    Configuration class for neural network training parameters.
-    Using default params set in original PAGEpy code
+    Configuration class for custom NN hyperparameters.
+    Using default params set in original PAGEpy code.
 
     Parameters: (TODO update this)
     - learning_rate (float): intial learning rate of the model
@@ -83,7 +83,7 @@ class SimpleNN:
     def __init__(
         self,
         n_input_features: int,
-        config: Optional[TrainingConfig] = None,
+        config: Optional[NNModelConfig] = None,
     ):
         """
         Initialize the SimpleNN Model.
@@ -92,7 +92,7 @@ class SimpleNN:
             n_input_features: Number of input features (genes)
             config: Training configuration object
         """
-        self.config = config or TrainingConfig()  # uses AdvancedNN's default values
+        self.config = config or NNModelConfig()  # uses AdvancedNN's default values
         self.n_input_features = n_input_features
 
         # Model components

@@ -19,7 +19,7 @@ import pandas as pd
 
 from PAGEpy import get_logger, plot_functions, pso, setup_logging, utils
 from PAGEpy.dataset_class import GeneExpressionDataset
-from PAGEpy.models import AdvancedNN, TrainingConfig
+from PAGEpy.models import AdvancedNN, NNModelConfig, SimpleNN
 
 setup_logging(
     level=logging.INFO,
@@ -32,10 +32,10 @@ logger = get_logger(__name__)
 def main():
     """Main function to run the bulk analysis pipeline."""
 
-    # Set run ID 
-    #run_id = datetime.now().strftime("%y%m%d_%H%M%S")
-    run_id = "250901_212046" # e.g., can be set to a previously crashed run ID
-    
+    # Set run ID
+    # run_id = datetime.now().strftime("%y%m%d_%H%M%S")
+    run_id = "250901_212046"  # e.g., can be set to a previously crashed run ID
+
     logger.info("Starting Bulk Analysis Pipeline for Run ID '%s'...", run_id)
     logger.info("=" * 50)
 
@@ -84,7 +84,7 @@ def main():
     logger.info("Loaded %d genes", len(current_genes))
 
     # Set NN model parameters
-    config = TrainingConfig(
+    config = NNModelConfig(
         report_frequency=1,
         auc_threshold=1,
         learning_rate=0.001
@@ -134,10 +134,12 @@ def main():
     logger.info("This may take a while...")
 
     pso_params = {
+        'run_id': run_id,
         'pop_size': 200,
         # 'pop_size': 5,
         'n_generations': 15,
         # 'n_generations': 2,
+        'model_class': SimpleNN,
         'w': 1,
         'c1': 2,
         'c2': 1.5,
@@ -151,7 +153,6 @@ def main():
     logger.info("PSO parameters: %s", pso_params)
 
     best_solution, best_fitness = pso.run_binary_pso(
-        run_id=run_id,
         input_data=current_data,
         feature_names=current_genes,
         **pso_params

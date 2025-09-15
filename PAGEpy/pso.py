@@ -14,21 +14,34 @@ Main Components:
 - BinaryPSO: PSO algorithm implementation (partial)
 - evaluate_fitness: Fitness evaluation function using cross-validation
 - binary_pso: Main PSO execution function with adaptive parameter adjustment
+
+REMARK for future refactoring:
+- run_binary_pso is creating a PSO instance and when I call it in the main
+  analysis scripts, I'm not using most of the params. The idea is to refactor
+  the code mostly from this module until everything is nice (e.g., making 
+  run_binary_pso def as simple as possible). Eventually, I'd like to remove it
+  as a function and use the PSO class "interface" as much as possible.
+
+Authors: Sean O'Toole and Prisca Dotti
+Last modified: 15.09.25
 '''
 
 import os
 import pickle
 import time
 from datetime import datetime
-from typing import Callable, Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
 from PAGEpy import get_logger
-from PAGEpy.fitness_functions import evaluate_particle_fitness
+from PAGEpy.dataset_class import GeneExpressionDataset
 from PAGEpy.k_folds_class import KFoldData
+from PAGEpy.model_adapters import ModelAdapterFactory
+from PAGEpy.models import SimpleNN
 
 logger = get_logger(__name__)
+
 
 ######################### PSO ALGORITHM #########################
 
@@ -111,26 +124,18 @@ class BinaryPSO:
         current_generation (int): Current generation number
     """
 
-    # TODO: in realtà potrei magari instanziare il modello al di fuori
-    #       dell'evaluate_population ?? (così invece di passare model class +
-    #       model params, basta passare il modello già creato, anché perché non
-    #       è il compito di una PSO class creare un DL model!)
-
     def __init__(
         self,
         run_id: str,
+        feature_names: list,
         pop_size: int,
-        n_features: int,
-        # TODO: devo davvero passarla? non dovrebbe essercene una generica?
-        fitness_function: Callable,
         model_class,
-        hyperparams: Optional[dict] = None,
-        training_params: Optional[dict] = None,
+        model_params: dict,
         w: float = 1,
         c1: float = 2,
         c2: float = 2,
         n_reps: int = 4,
-        checkpoint_dir: Optional[str] = None
+        checkpoint_dir: str = "pso_checkpoints"
     ):
         """
         Initialize Binary PSO with model configuration.
@@ -138,12 +143,11 @@ class BinaryPSO:
         Args:
             run_id: Unique identifier
             pop_size: Population size  
-            n_features: Number of features
+            XXXXX n_features: Number of features
             model_class: Model to use (RandomForestClassifier, SimpleNN, etc.)
-            hyperparams: Parameters for model initialization
-            training_params: Parameters for model training/fitting
+            model_params: Parameters for model initialization
             fitness_function: Custom fitness function (uses evaluate_particle_fitness if None)
-            w, c1, c2: PSO parameters
+            w, c1, c2: PSO parameters (inertia weight, cognitive param, social param)
             n_reps: Number of fitness evaluation repetitions
             checkpoint_dir: Checkpoint directory
         """
@@ -151,39 +155,33 @@ class BinaryPSO:
         # PSO Algorithm Parameters
         self.run_id = run_id
         self.pop_size = pop_size
-        self.n_features = n_features
-        self.fitness_function = fitness_function
-        self.w = w    # Inertia weight
-        self.c1 = c1  # Cognitive parameter
-        self.c2 = c2  # Social parameter
-        self.n_reps = n_reps  # Number of repetitions for fitness evaluation
+        self.feature_names = feature_names
+        self.n_features = len(self.feature_names)
+        self.w, self.c1, self.c2 = w, c1, c2
+        self.n_reps = n_reps
 
         # Model configuration
         self.model_class = model_class
-        self.hyperparams = hyperparams or {}
-        self.training_params = training_params or {}
-
-        # Fitness function TODO: fitness_function arg can be removed
-        self.fitness_function = fitness_function or evaluate_particle_fitness
+        self.model_params = model_params
 
         # Checkpointing setup
-        self.checkpoint_dir = checkpoint_dir or "pso_checkpoints"
+        self.checkpoint_dir = checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
-        self.current_generation = 0
 
         # PSO state
-        self.population: Optional[np.ndarray] = None
-        self.velocities: Optional[np.ndarray] = None
-        self.p_best: Optional[np.ndarray] = None
-        self.p_best_scores: Optional[np.ndarray] = None
-        self.g_best: Optional[np.ndarray] = None
-        self.g_best_score: Optional[float] = None
+        self.current_generation = 0
+        self.population: np.ndarray
+        self.velocities: np.ndarray
+        self.p_best: np.ndarray
+        self.p_best_scores: np.ndarray
+        self.g_best: np.ndarray
+        self.g_best_score: float
 
         # Initialize population or load from checkpoint
-        if not self.load_checkpoint():
-            self.initialize_population()
+        if not self._load_checkpoint():
+            self._initialize_population()
 
-    def initialize_population(self):
+    def _initialize_population(self) -> None:
         """
         Initialize random population of binary particles and their velocities.
         """
@@ -204,7 +202,7 @@ class BinaryPSO:
         # will be better
         self.p_best_scores = np.full(self.pop_size, -np.inf)
 
-    def sigmoid(self, x: np.ndarray, alpha: float = 0.8):
+    def _sigmoid(self, x: np.ndarray, alpha: float = 0.8) -> np.ndarray:
         """
         Sigmoid function for converting velocity to probability. The alpha
         parameter controls the steepness of the sigmoid:
@@ -220,7 +218,7 @@ class BinaryPSO:
         """
         return 1 / (1 + np.exp(-alpha * x))
 
-    def update_positions(self):
+    def _update_positions(self) -> None:
         """
         Update particle positions based on current velocities.
         (binary PSO position update rule)
@@ -232,12 +230,13 @@ class BinaryPSO:
             raise ValueError(
                 "self.population must be initialized before updating positions.")
 
-        prob = self.sigmoid(self.velocities)  # Convert velocity to probability
+        # Convert velocity to probability
+        prob = self._sigmoid(self.velocities)
         self.population = (
             np.random.rand(*self.population.shape) < prob
         ).astype(int)
 
-    def update_velocities(self):
+    def _update_velocities(self) -> None:
         """
         Update particle velocities using PSO velocity update equation.
 
@@ -267,36 +266,202 @@ class BinaryPSO:
             self.c2 * r2 * (self.g_best - self.population)
         )
 
-    def evaluate_population(
+    def optimize(
         self,
-        kfolds: KFoldData, feature_names: list,
-        generation_nb: int, verbose: bool = False,
-    ):
-        """Evaluate fitness for all particles in the population"""
+        input_data: GeneExpressionDataset,
+        n_generations: int,
+        run_params: dict,
+        adaptive_metrics: bool = False,
+        verbose: bool = False
+    ) -> Tuple[List[str], Dict[int, np.ndarray], List[Dict[str, float]]]:
+        # Initialize progress tracking variables
+        particle_history = {}  # Store population positions by generation
+        fitness_score_history = []  # Store all fitness scores by generation
 
+        if adaptive_metrics:
+            # Create tracker with smoothing factor
+            progress_tracker = ProgressTracker(alpha=0.2)
+            prev_avg_fitness = None
+        else:  # to avoid undefined variable error
+            progress_tracker = None
+            prev_avg_fitness = 0
+
+        ################ Try to restore history from checkpoint ################
+
+        if self.current_generation > 0:
+            checkpoint_path = self._get_checkpoint_path()
+            try:
+                with open(checkpoint_path, 'rb') as f:
+                    checkpoint_data = pickle.load(f)
+                    particle_history = checkpoint_data.get(
+                        'particle_history', {})
+                    fitness_score_history = checkpoint_data.get(
+                        'fitness_score_history', [])
+                    logger.info(
+                        "Restored history with %d generations", len(particle_history))
+            except Exception as e:
+                logger.warning("Could not restore history: %s", str(e))
+
+        ######################### Run PSO Optimization #########################
+
+        # Start from current generation (0 if fresh start, or resumed generation)
+        for generation in range(self.current_generation, n_generations):
+            logger.info("="*60)
+            logger.info("Generation %d started", generation + 1)
+            start_time = time.time()
+
+            # Evaluate fitness for all particles
+            fitness_scores = np.array(self._evaluate_population(
+                input_data=input_data,
+                run_params=run_params,
+                verbose=verbose,
+            ))
+            avg_fitness = np.mean(fitness_scores)
+
+            # Update personal best
+            improved = fitness_scores > self.p_best_scores
+            self.p_best[improved] = self.population[improved]
+            self.p_best_scores[improved] = fitness_scores[improved]
+
+            # Update global best
+            g_best_idx = np.argmax(self.p_best_scores)
+            self.g_best = self.p_best[g_best_idx]
+            self.g_best_score = self.p_best_scores[g_best_idx]
+
+            # Apply progress-based adjustment for C1 and C2
+            if adaptive_metrics and prev_avg_fitness is not None:
+                self._progress_based_adjustment(
+                    avg_fitness, prev_avg_fitness, progress_tracker
+                )
+                prev_avg_fitness = avg_fitness
+
+            # Update velocities and positions for next generation
+            if generation < n_generations - 1:  # Don't update on last generation
+                self._update_velocities()
+                self._update_positions()
+
+            # Store tracking data
+            particle_history[generation] = self.population.copy()
+            fitness_score_history.append(
+                {f"fitness_p_{i}": score_p_i
+                 for i, score_p_i in enumerate(fitness_scores)}
+            )
+
+            # Update current generation and save checkpoint
+            self.current_generation = generation + 1
+            self._save_checkpoint(
+                generation=self.current_generation,
+                particle_history=particle_history,
+                fitness_score_history=fitness_score_history
+            )
+
+            end_time = time.time()
+
+            logger.info(
+                "Generation %d summary: Best AUC: %.4f | Average AUC: %.4f | Duration: %.2fs",
+                generation + 1, self.g_best_score, avg_fitness, end_time - start_time
+            )
+
+        ################### Algorithm completed successfully ###################
+
+        # Delete checkpoint
+        self._delete_checkpoint()
+
+        # Extract selected genes
+        selected_genes = [gene for gene, selected in zip(
+            self.feature_names, self.g_best) if selected]
+
+        logger.info("Selected %d features", len(selected_genes))
+        logger.debug("Selected features: %s", ", ".join(
+            selected_genes) if selected_genes else "None")
+
+        return selected_genes, particle_history, fitness_score_history
+
+    def _evaluate_population(
+            self, input_data: GeneExpressionDataset, run_params: dict, verbose: bool = False,
+    ) -> list:
+        """Evaluate fitness for all particles in the population using cross-validation."""
         if self.population is None:
             raise ValueError(
                 "self.population must be initialized before evaluating fitness.")
 
-        fitness_scores = np.array([
-            np.mean([
-                self.fitness_function(
-                    particle=particle,
-                    kfolds=kfolds,
-                    feature_names=feature_names,
-                    particle_id=particle_id,
-                    generation_nb=generation_nb,
-                    loud=verbose,
-                ) for _ in range(self.n_reps)
-            ])
-            for particle_id, particle in enumerate(self.population)
-        ])
+        fitness_scores = []
+
+        for particle_id, particle in enumerate(self.population):
+            particle_scores = []
+
+            for rep in range(self.n_reps):
+                start_time = time.time()
+
+                # Convert individual to boolean array for gene selection
+                selected_features = [
+                    feat_name for feat_name, selected in zip(
+                        self.feature_names, particle) if selected
+                ]
+                n_selected = len(selected_features)
+
+                if n_selected == 0:
+                    logger.warning(
+                        "Particle %d, repetition %d: No features selected. Fitness set to 0.",
+                        particle_id + 1, rep + 1
+                    )
+                    particle_scores.append(0.0)
+
+                # Create model adapter to have train_and_score method
+                model_wrapper = ModelAdapterFactory.create_adapter(
+                    model_class=self.model_class,
+                    model_params=self.model_params,
+                    n_features=n_selected
+                )
+
+                # Create cross-validation folds
+                kfolds = KFoldData(input_data, 5)
+                fold_scores = []
+
+                # Perform k-fold cross-validation
+                for fold_id, fold in enumerate(kfolds):
+                    try:
+                        x_train, x_test, y_train, y_test = fold.reduce_input_features(
+                            selected_features)
+
+                        # Train model and get average AUC score
+                        avg_score = model_wrapper.train_and_score(
+                            x_train, y_train, x_test, y_test, run_params
+                        )
+
+                        fold_scores.append(avg_score)
+
+                        if verbose:
+                            logger.debug(
+                                "Particle %d, Fold %d/%d: AUC = %.4f",
+                                particle_id + 1, fold_id + 1, kfolds.n_folds, avg_score
+                            )
+
+                    except Exception as e:
+                        logger.error(
+                            "Particle %d, Fold %d/%d: Error during training/evaluation: %s",
+                            particle_id + 1, fold_id +
+                            1, kfolds.n_folds, str(e)
+                        )
+                        # Assign zero fitness for failed folds
+                        fold_scores.append(0.0)
+
+                avg_score = np.mean(fold_scores)
+                particle_scores.append(avg_score)
+                end_time = time.time()
+
+                if verbose:
+                    logger.info(
+                        "Particle %d: Genes=%d | Mean AUC=%.3f | Time=%.2fs",
+                        particle_id + 1, n_selected, avg_score, end_time - start_time
+                    )
+            fitness_scores.append(np.mean(particle_scores))
 
         return fitness_scores
 
-    def progress_based_adjustment(
+    def _progress_based_adjustment(
         self, avg_fitness, prev_avg_fitness, progress_tracker, epsilon=1e-6
-    ):
+    ) -> None:
         """
         Dynamically adjust PSO parameters C1 and C2 based on optimization progress.
 
@@ -351,114 +516,13 @@ class BinaryPSO:
         self.c1 = min(max(self.c1, 0.5), 2.5)
         self.c2 = min(max(self.c2, 0.5), 2.5)
 
-    def get_checkpoint_path(self) -> str:
+    def _get_checkpoint_path(self) -> str:
         """Get the checkpoint file path for this run."""
         return os.path.join(self.checkpoint_dir, f"checkpoint_{self.run_id}.pkl")
 
-    def optimize(
-        self,
-        input_data,  # not sure about the type here
-        feature_names: list,
-        n_generations: int,
-        adaptive_metrics: bool = False,
-        print_progress: bool = False
-    ):
-        # Initialize progress tracking variables
-        particle_history = {}  # Store population positions by generation
-        fitness_score_history = []  # Store all fitness scores by generation
-
-        # Try to restore history from checkpoint
-        if self.current_generation > 0:
-            checkpoint_path = self.get_checkpoint_path()
-            try:
-                with open(checkpoint_path, 'rb') as f:
-                    checkpoint_data = pickle.load(f)
-                    particle_history = checkpoint_data.get(
-                        'particle_history', {})
-                    fitness_score_history = checkpoint_data.get(
-                        'fitness_score_history', [])
-                    logger.info(
-                        f"Restored history with {len(particle_history)} generations")
-            except Exception as e:
-                logger.warning(f"Could not restore history: {e}")
-
-        if adaptive_metrics:
-            # Create tracker with smoothing factor
-            progress_tracker = ProgressTracker(alpha=0.2)
-            prev_avg_fitness = None
-        else:  # to avoid undefined variable error
-            progress_tracker = None
-            prev_avg_fitness = 0
-
-        crossval_folds = KFoldData(input_data, 5)
-
-        # Start from current generation (0 if fresh start, or resumed generation)
-        for generation in range(self.current_generation, n_generations):
-            logger.info("="*60)
-            logger.info("Generation %d started", generation + 1)
-            start_time = time.time()
-
-            # Evaluate fitness for all particles
-            fitness_scores = self.evaluate_population(
-                kfolds=crossval_folds,
-                feature_names=feature_names,
-                generation_nb=generation+1,
-                verbose=print_progress
-            )
-            avg_fitness = np.mean(fitness_scores)
-
-            # Update personal best
-            improved = fitness_scores > self.p_best_scores
-            self.p_best[improved] = self.population[improved]
-            self.p_best_scores[improved] = fitness_scores[improved]
-
-            # Update global best
-            g_best_idx = np.argmax(self.p_best_scores)
-            self.g_best = self.p_best[g_best_idx]
-            self.g_best_score = self.p_best_scores[g_best_idx]
-
-            # Apply progress-based adjustment for C1 and C2
-            if adaptive_metrics and prev_avg_fitness is not None:
-                self.progress_based_adjustment(
-                    avg_fitness, prev_avg_fitness, progress_tracker
-                )
-                prev_avg_fitness = avg_fitness
-
-            # Update velocities and positions for next generation
-            if generation < n_generations - 1:  # Don't update on last generation
-                self.update_velocities()
-                self.update_positions()
-
-            # Store tracking data
-            particle_history[generation] = self.population.copy()
-            fitness_score_history.append(
-                {f"fitness_p_{i}": score_p_i
-                 for i, score_p_i in enumerate(fitness_scores)}
-            )
-
-            # Update current generation and save checkpoint
-            self.current_generation = generation + 1
-            self.save_checkpoint(
-                generation=self.current_generation,
-                particle_history=particle_history,
-                fitness_score_history=fitness_score_history
-            )
-
-            end_time = time.time()
-
-            logger.info(
-                "Generation %d summary: Best AUC: %.4f | Average AUC: %.4f | Duration: %.2fs",
-                generation + 1, self.g_best_score, avg_fitness, end_time - start_time
-            )
-
-        # Algorithm completed successfully - delete checkpoint
-        self.delete_checkpoint()
-
-        return particle_history, fitness_score_history
-
-    def save_checkpoint(
+    def _save_checkpoint(
         self, generation: int, particle_history: Dict, fitness_score_history: list
-    ):
+    ) -> None:
         """
         Save current PSO state to checkpoint file.
 
@@ -493,21 +557,21 @@ class BinaryPSO:
             'run_id': self.run_id,
         }
 
-        checkpoint_path = self.get_checkpoint_path()
+        checkpoint_path = self._get_checkpoint_path()
         with open(checkpoint_path, 'wb') as f:
             pickle.dump(checkpoint_data, f)
 
         logger.info(
             "Checkpoint saved at generation %d: %s", generation, checkpoint_path)
 
-    def load_checkpoint(self) -> bool:
+    def _load_checkpoint(self) -> bool:
         """
         Load PSO state from checkpoint file if it exists.
 
         Returns:
             bool: True if checkpoint was loaded successfully, False otherwise
         """
-        checkpoint_path = self.get_checkpoint_path()
+        checkpoint_path = self._get_checkpoint_path()
 
         if not os.path.exists(checkpoint_path):
             logger.info(
@@ -552,9 +616,9 @@ class BinaryPSO:
             logger.error("Failed to load checkpoint: %s. Starting fresh.", e)
             return False
 
-    def delete_checkpoint(self):
+    def _delete_checkpoint(self) -> None:
         """Delete the checkpoint file for this run."""
-        checkpoint_path = self.get_checkpoint_path()
+        checkpoint_path = self._get_checkpoint_path()
         try:
             if os.path.exists(checkpoint_path):
                 os.remove(checkpoint_path)
@@ -565,13 +629,29 @@ class BinaryPSO:
 
 # PSO Main Loop
 
-# TODO: add model choice as a parameter!
-
-
 def run_binary_pso(
-    run_id: str, input_data, feature_names: list, pop_size: int, n_generations: int,
-    w: float = 1, c1: float = 2, c2: float = 2, n_reps: int = 4,
-    verbose: bool = False, adaptive_metrics: bool = False,
+    run_id: str,
+    input_data: GeneExpressionDataset,
+    feature_names: list,
+    pop_size: int,
+    n_generations: int,
+    model_class=SimpleNN,
+    model_params={  # specific to the considered model_class (e.g., sklearn methods -> empty (??))
+        'learning_rate': 0.001,
+        'l2_reg': 0.2,
+        'balance_classes': True,
+        'report_frequency': 10,
+        'auc_threshold': 0.999,
+    },
+    # TODO: maybe run_params is used only when model_params is a custom NN????
+    # in tal caso: aggiungere ai model_params
+    run_params={'n_epochs': 50, 'batch_size': 512, },
+    w: float = 1,
+    c1: float = 2,
+    c2: float = 2,
+    n_reps: int = 4,
+    verbose: bool = False,
+    adaptive_metrics: bool = False,
     output_prefix: str = "pso_results",
     checkpoint_dir: Optional[str] = None
 ) -> Tuple[np.ndarray, float]:
@@ -596,6 +676,8 @@ def run_binary_pso(
     Returns:
         tuple: (best_gene_vector, best_score)
     """
+    ################# Initialise checkpointing and PSO object ##################
+
     # Set up checkpoint directory
     if checkpoint_dir is None:
         checkpoint_dir = os.path.join(
@@ -604,40 +686,41 @@ def run_binary_pso(
     # Initialize PSO
     pso = BinaryPSO(
         run_id=run_id,
+        feature_names=feature_names,
         pop_size=pop_size,
-        n_features=len(feature_names),
-        fitness_function=evaluate_particle_fitness,
+        model_class=model_class,
+        model_params=model_params,
         w=w, c1=c1, c2=c2, n_reps=n_reps,
         checkpoint_dir=checkpoint_dir)
 
-    logger.info("Starting PSO optimization with run_id: %s", pso.run_id)
+    logger.info(
+        "Starting PSO optimization with run_id '%s' and model class '%s'",
+        pso.run_id, str(model_class.__name__))
     if pso.current_generation > 0:
         logger.info("Resuming from generation %d", pso.current_generation)
 
+    ########################## PSO optimization loop ###########################
+
     # Run PSO to optimize gene selection
-    particle_history, fitness_score_history = pso.optimize(
+    selected_genes, particle_history, fitness_score_history = pso.optimize(
         input_data=input_data,
-        feature_names=feature_names,
         n_generations=n_generations,
+        run_params=run_params,
         adaptive_metrics=adaptive_metrics,
-        print_progress=verbose
+        verbose=verbose
     )
 
-    # Extract and save selected genes
-    selected_genes = [gene for gene, selected in zip(
-        feature_names, pso.g_best) if selected == 1]
-    logger.info("Selected %d genes (top features)", len(selected_genes))
-    logger.debug("Selected genes: %s", ", ".join(
-        selected_genes) if selected_genes else "None")
+    ###################### Save, plot, and return results ######################
 
-    # Ensure output directory exists
+   # Save selected genes
     os.makedirs(output_prefix, exist_ok=True)
-
     with open(os.path.join(output_prefix, 'pso_selected_genes.pkl'), 'wb') as f:
         pickle.dump(selected_genes, f)
 
     # Also save selected genes as a .txt file (one gene per line)
-    with open(os.path.join(output_prefix, 'pso_selected_genes.txt'), 'w', encoding='utf-8') as txt_f:
+    with open(
+        os.path.join(output_prefix, 'pso_selected_genes.txt'), 'w', encoding='utf-8'
+    ) as txt_f:
         for gene in selected_genes:
             txt_f.write(f"{gene}\n")
 

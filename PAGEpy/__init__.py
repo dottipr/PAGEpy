@@ -29,9 +29,11 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record):
         # Choose format based on log level
         if record.levelno >= logging.ERROR:
-            fmt = f"{self.COLORS.get(record.levelname, '')}%(asctime)s [%(module)s:%(lineno)d] [%(levelname)s]{self.RESET} %(message)s"
+            fmt = f"{self.COLORS.get(record.levelname, '')}%(asctime)s \
+                [%(module)s:%(lineno)d] [%(levelname)s]{self.RESET} %(message)s"
         else:
-            fmt = f"{self.COLORS.get(record.levelname, '')}%(asctime)s [%(module)s:%(lineno)d]{self.RESET} %(message)s"
+            fmt = f"{self.COLORS.get(record.levelname, '')}%(asctime)s \
+                [%(module)s:%(lineno)d]{self.RESET} %(message)s"
 
         formatter = logging.Formatter(fmt, datefmt="%H:%M:%S")
         return formatter.format(record)
@@ -129,7 +131,7 @@ def setup_jupyter_logging(level=logging.INFO):
 
     # Simple formatter without colors (Jupyter handles styling)
     formatter = logging.Formatter(
-        '%(asctime)s [%(name)s:%(levelname)s] %(message)s',
+        '%(asctime)s [%(name)s:%(lineno)d] [%(levelname)s] %(message)s',
         datefmt='%H:%M:%S'
     )
     jupyter_handler.setFormatter(formatter)

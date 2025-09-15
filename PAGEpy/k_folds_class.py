@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 
@@ -59,7 +61,9 @@ class IndividualFold:
         self.y_test = kfold_data.y[test_idx]
         self.selected_features = kfold_data.dataset.selected_features
 
-    def reduce_input_features(self, feature_subset_list: list):
+    def reduce_input_features(
+            self, feature_subset_list: List[str]
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Subset the input data to include only the selected genes.
         """
