@@ -5,7 +5,7 @@
 Bulk Analysis Script
 Converted from Jupyter notebook for server executions
 
-Last updated: 27.08.2025
+Last updated: 16.09.2025
 """
 
 import logging
